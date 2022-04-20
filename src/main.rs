@@ -3,7 +3,8 @@ use eframe::{
     epaint::Color32,
     epi,
 };
-use palette::{FromColor, IntoColor, Oklab, Srgb, Clamp};
+use palette::{FromColor, IntoColor, Oklab, Srgb, Clamp, convert::FromColorUnclamped};
+use rayon::{slice::ParallelSliceMut, iter::{IndexedParallelIterator, ParallelIterator}};
 
 const IMG_SIZE: usize = 512;
 
@@ -24,21 +25,25 @@ impl Default for Params {
 }
 
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
-    // create the buffer in a more efficient way
     let mut buf = vec![0u8; IMG_SIZE * IMG_SIZE * 4];
-    for y in 0..IMG_SIZE {
+    buf.par_chunks_exact_mut(IMG_SIZE * 4).enumerate().for_each(|(y, row)| {
         let normy = y as f32 / IMG_SIZE as f32;
-        for x in 0..IMG_SIZE {
+        row.chunks_exact_mut(4).enumerate().for_each(|(x, pixel)| {
+            assert!(pixel.len() == 4);
             let normx = x as f32 / IMG_SIZE as f32;
-            let lab = palette::Oklab::new(params.l, normx * 2. - 1., normy * 2. - 1.).clamp();
-            let rgb = Srgb::from_color(lab).into_format();
-            let base = 4 * (x + (IMG_SIZE * y));
-            buf[base] = rgb.red;
-            buf[base + 1] = rgb.green;
-            buf[base + 2] = rgb.blue;
-            buf[base + 3] = 0xff;
-        }
-    }
+            let lab = palette::Oklab::new(params.l, normx * 2. - 1., normy * 2. - 1.);
+            let rgb_unclamped = Srgb::from_color_unclamped(lab);
+            let rgb = if rgb_unclamped.is_within_bounds() {
+                rgb_unclamped.clamp().into_format()
+            } else {
+                Srgb::new(0u8, 0u8, 0u8)
+            };
+            pixel[0] = rgb.red;
+            pixel[1] = rgb.green;
+            pixel[2] = rgb.blue;
+            pixel[3] = 0xff;
+        });
+    });
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
