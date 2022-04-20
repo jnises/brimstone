@@ -14,17 +14,20 @@ const IMG_SIZE: usize = 512;
 
 #[derive(Clone, PartialEq)]
 struct Params {
-    l: f32,
-    a: f32,
-    b: f32,
+    l0: f32,
+    ld: f32,
+    a0: f32,
+    ad: f32,
+    b0: f32,
+    bd: f32,
 }
 
 impl Default for Params {
     fn default() -> Self {
-        let l = (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.;
-        let a = (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.;
-        let b = (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.;
-        Self { l, a, b }
+        let l0 = (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.;
+        let a0 = (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.;
+        let b0 = (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.;
+        Self { l0, a0, b0, ld: 0., ad: 0., bd: 0. }
     }
 }
 
@@ -78,25 +81,23 @@ fn make_lightness_map(l: f32) -> impl Fn(f32, f32) -> [u8; 4] {
     }
 }
 
+fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32) -> impl Fn(f32, f32) -> [u8; 4] {
+    move |x, _| {
+        let l = l0 + x * ld;
+        let a = a0 + x * ad;
+        let b = b0 + x * bd;
+        let lab = palette::Oklab::new(l, a, b);
+        let rgb = oklab_to_srgb_clipped(&lab).into_format();
+        [rgb.red, rgb.green, rgb.blue, 0xff]
+    }
+}
+
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
-    let buf = make_buf(make_lightness_map(params.l));
+    let buf = make_buf(make_linear_gradient(params.l0, params.ld, params.a0, params.ad, params.b0, params.bd));
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
-        // egui::ColorImage::new(
-        //     [IMG_SIZE, IMG_SIZE],
-        //     Color32::from_rgb(0, 0, 0),//color.red, color.green, color.blue),
-        // ),
     )
-    // let lab = palette::Oklab::new(params.l, params.a, params.b).clamp();
-    // let color = Srgb::from_color(lab).clamp().into_format();
-    // ctx.load_texture(
-    //     "gradient",
-    //     egui::ColorImage::new(
-    //         [IMG_SIZE, IMG_SIZE],
-    //         Color32::from_rgb(color.red, color.green, color.blue),
-    //     ),
-    // )
 }
 
 struct Gui {
@@ -120,16 +121,28 @@ impl epi::App for Gui {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.add(
-                        egui::Slider::new(&mut newparams.l, Oklab::min_l()..=Oklab::max_l())
-                            .text("L"),
+                        egui::Slider::new(&mut newparams.l0, Oklab::min_l()..=Oklab::max_l())
+                            .text("L0"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut newparams.a, Oklab::min_a()..=Oklab::max_a())
-                            .text("a"),
+                        egui::Slider::new(&mut newparams.ld, -1f32..=1.)
+                            .text("Ld"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut newparams.b, Oklab::min_b()..=Oklab::max_b())
-                            .text("b"),
+                        egui::Slider::new(&mut newparams.a0, Oklab::min_a()..=Oklab::max_a())
+                            .text("a0"),
+                    );
+                    ui.add(
+                        egui::Slider::new(&mut newparams.ad, -1f32..=1.)
+                            .text("ad"),
+                    );
+                    ui.add(
+                        egui::Slider::new(&mut newparams.b0, Oklab::min_b()..=Oklab::max_b())
+                            .text("b0"),
+                    );
+                    ui.add(
+                        egui::Slider::new(&mut newparams.bd, -1f32..=1.)
+                            .text("bd"),
                     );
                 });
                 ui.vertical(|ui| {
