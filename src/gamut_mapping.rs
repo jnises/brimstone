@@ -115,7 +115,7 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
     }
 
     // Approximate max saturation using a polynomial:
-    let mut S = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b;
+    let mut s = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b;
 
     // Do one step Halley's method to get closer
     // this gives an error less than 10e6, except for some blue hues where the dS/dh is close to infinite
@@ -126,30 +126,30 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
     let k_s = -0.0894841775f32 * a - 1.2914855480f32 * b;
 
     {
-        let l_ = 1. + S * k_l;
-        let m_ = 1. + S * k_m;
-        let s_ = 1. + S * k_s;
+        let l_ = 1. + s * k_l;
+        let m_ = 1. + s * k_m;
+        let s_ = 1. + s * k_s;
 
         let l = l_ * l_ * l_;
         let m = m_ * m_ * m_;
-        let s = s_ * s_ * s_;
+        let sh = s_ * s_ * s_;
 
-        let l_d_s = 3. * k_l * l_ * l_;
-        let m_d_s = 3. * k_m * m_ * m_;
-        let s_d_s = 3. * k_s * s_ * s_;
+        let l_ds = 3. * k_l * l_ * l_;
+        let m_ds = 3. * k_m * m_ * m_;
+        let s_ds = 3. * k_s * s_ * s_;
 
-        let l_d_s_2 = 6. * k_l * k_l * l_;
-        let m_d_s_2 = 6. * k_m * k_m * m_;
-        let s_d_s_2 = 6. * k_s * k_s * s_;
+        let l_ds2 = 6. * k_l * k_l * l_;
+        let m_ds2 = 6. * k_m * k_m * m_;
+        let s_ds2 = 6. * k_s * k_s * s_;
 
-        let f = wl * l + wm * m + ws * s;
-        let f1 = wl * l_d_s + wm * m_d_s + ws * s_d_s;
-        let f2 = wl * l_d_s_2 + wm * m_d_s_2 + ws * s_d_s_2;
+        let f = wl * l + wm * m + ws * sh;
+        let f1 = wl * l_ds + wm * m_ds + ws * s_ds;
+        let f2 = wl * l_ds2 + wm * m_ds2 + ws * s_ds2;
 
-        S = S - f * f1 / (f1 * f1 - 0.5f32 * f * f2);
+        s = s - f * f1 / (f1 * f1 - 0.5f32 * f * f2);
     }
 
-    S
+    s
 }
 
 // finds L_cusp and C_cusp for a given hue
@@ -182,38 +182,38 @@ fn find_cusp(a: f32, b: f32) -> LC {
 // L = L0 * (1 - t) + t * L1;
 // C = t * C1;
 // a and b must be normalized so a^2 + b^2 == 1
-fn find_gamut_intersection(a: f32, b: f32, l_1: f32, c_1: f32, l_0: f32) -> f32 {
+fn find_gamut_intersection(a: f32, b: f32, l1: f32, c1: f32, l0: f32) -> f32 {
     // Find the cusp of the gamut triangle
     let cusp = find_cusp(a, b);
 
     // Find the intersection for upper and lower half seprately
-    let t = if ((l_1 - l_0) * cusp.c - (cusp.l - l_0) * c_1) <= 0. {
+    let t = if ((l1 - l0) * cusp.c - (cusp.l - l0) * c1) <= 0. {
         // Lower half
 
-        cusp.c * l_0 / (c_1 * cusp.l + cusp.c * (l_0 - l_1))
+        cusp.c * l0 / (c1 * cusp.l + cusp.c * (l0 - l1))
     } else {
         // Upper half
 
         // First intersect with triangle
-        let mut t = cusp.c * (l_0 - 1.) / (c_1 * (cusp.l - 1.) + cusp.c * (l_0 - l_1));
+        let mut t = cusp.c * (l0 - 1.) / (c1 * (cusp.l - 1.) + cusp.c * (l0 - l1));
 
         // Then one step Halley's method
         {
-            let d_l = l_1 - l_0;
-            let d_c = c_1;
+            let dl = l1 - l0;
+            let dc = c1;
 
             let k_l = 0.3963377774f32 * a + 0.2158037573f32 * b;
             let k_m = -0.1055613458f32 * a - 0.0638541728f32 * b;
             let k_s = -0.0894841775f32 * a - 1.2914855480f32 * b;
 
-            let l_dt = d_l + d_c * k_l;
-            let m_dt = d_l + d_c * k_m;
-            let s_dt = d_l + d_c * k_s;
+            let l_dt = dl + dc * k_l;
+            let m_dt = dl + dc * k_m;
+            let s_dt = dl + dc * k_s;
 
             // If higher accuracy is required, 2 or 3 iterations of the following block can be used:
             {
-                let l = l_0 * (1. - t) + t * l_1;
-                let c = t * c_1;
+                let l = l0 * (1. - t) + t * l1;
+                let c = t * c1;
 
                 let l_ = l + c * k_l;
                 let m_ = l + c * k_m;
@@ -283,10 +283,10 @@ pub fn gamut_clip_preserve_chroma(rgb: LinearRGB) -> LinearRGB {
     let a_ = lab.a / c;
     let b_ = lab.b / c;
 
-    let l_0 = l.clamp(0., 1.);
+    let l0 = l.clamp(0., 1.);
 
-    let t = find_gamut_intersection(a_, b_, l, c, l_0);
-    let l_clipped = l_0 * (1. - t) + t * l;
+    let t = find_gamut_intersection(a_, b_, l, c, l0);
+    let l_clipped = l0 * (1. - t) + t * l;
     let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
@@ -309,10 +309,10 @@ pub fn gamut_clip_project_to_0_5(rgb: LinearRGB) -> LinearRGB {
     let a_ = lab.a / c;
     let b_ = lab.b / c;
 
-    let l_0 = 0.5;
+    let l0 = 0.5;
 
-    let t = find_gamut_intersection(a_, b_, l, c, l_0);
-    let l_clipped = l_0 * (1. - t) + t * l;
+    let t = find_gamut_intersection(a_, b_, l, c, l0);
+    let l_clipped = l0 * (1. - t) + t * l;
     let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
@@ -338,11 +338,11 @@ pub fn gamut_clip_project_to_L_cusp(rgb: LinearRGB) -> LinearRGB {
     // The cusp is computed here and in find_gamut_intersection, an optimized solution would only compute it once.
     let cusp = find_cusp(a_, b_);
 
-    let l_0 = cusp.l;
+    let l0 = cusp.l;
 
-    let t = find_gamut_intersection(a_, b_, l, c, l_0);
+    let t = find_gamut_intersection(a_, b_, l, c, l0);
 
-    let l_clipped = l_0 * (1. - t) + t * l;
+    let l_clipped = l0 * (1. - t) + t * l;
     let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
@@ -369,12 +369,12 @@ pub fn gamut_clip_adaptive_l0_0_5_alpha(rgb: LinearRGB, alpha: f32) -> LinearRGB
     let a_ = lab.a / c;
     let b_ = lab.b / c;
 
-    let l_d = l - 0.5;
-    let e1 = 0.5 + l_d.abs() + alpha * c;
-    let l_0 = 0.5 * (1. + sgn(l_d) * (e1 - f32::sqrt(e1 * e1 - 2. * l_d.abs())));
+    let ld = l - 0.5;
+    let e1 = 0.5 + ld.abs() + alpha * c;
+    let l0 = 0.5 * (1. + sgn(ld) * (e1 - f32::sqrt(e1 * e1 - 2. * ld.abs())));
 
-    let t = find_gamut_intersection(a_, b_, l, c, l_0);
-    let l_clipped = l_0 * (1. - t) + t * l;
+    let t = find_gamut_intersection(a_, b_, l, c, l0);
+    let l_clipped = l0 * (1. - t) + t * l;
     let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
@@ -404,11 +404,11 @@ pub fn gamut_clip_adaptive_l0_l_cusp_alpha(rgb: LinearRGB, alpha: f32) -> Linear
     // The cusp is computed here and in find_gamut_intersection, an optimized solution would only compute it once.
     let cusp = find_cusp(a_, b_);
 
-    let l_d = l - cusp.l;
-    let k = 2. * if l_d > 0. { 1. - cusp.l } else { cusp.l };
+    let ld = l - cusp.l;
+    let k = 2. * if ld > 0. { 1. - cusp.l } else { cusp.l };
 
-    let e1 = 0.5 * k + l_d.abs() + alpha * c / k;
-    let l_0 = cusp.l + 0.5 * (sgn(l_d) * (e1 - f32::sqrt(e1 * e1 - 2. * k * l_d.abs())));
+    let e1 = 0.5 * k + ld.abs() + alpha * c / k;
+    let l_0 = cusp.l + 0.5 * (sgn(ld) * (e1 - f32::sqrt(e1 * e1 - 2. * k * ld.abs())));
 
     let t = find_gamut_intersection(a_, b_, l, c, l_0);
     let l_clipped = l_0 * (1. - t) + t * l;
