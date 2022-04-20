@@ -28,52 +28,58 @@ impl Default for Params {
     }
 }
 
-fn oklab_to_srgb(lab: &palette::Oklab, map: bool) -> Srgb<f32> {
-    if map {
-        let linear = gamut_mapping::oklab_to_linear_srgb(gamut_mapping::OKLab {
-            l: lab.l,
-            a: lab.a,
-            b: lab.b,
-        });
-        let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5(linear);
-        //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
-        //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
-        //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
-        //let mapped = gamut_mapping::gamut_clip_project_to_L_cusp(linear);
-        Srgb::from_linear(palette::LinSrgb::new(mapped.r, mapped.g, mapped.b))
+fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
+    let linear = gamut_mapping::oklab_to_linear_srgb(gamut_mapping::OKLab {
+        l: lab.l,
+        a: lab.a,
+        b: lab.b,
+    });
+    let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5(linear);
+    //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
+    //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
+    //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
+    //let mapped = gamut_mapping::gamut_clip_project_to_L_cusp(linear);
+    Srgb::from_linear(palette::LinSrgb::new(mapped.r, mapped.g, mapped.b))
+}
+
+fn oklab_to_srgb(lab: &palette::Oklab) -> Srgb<f32> {
+    let rgb_unclamped = Srgb::from_color_unclamped(*lab);
+    if rgb_unclamped.is_within_bounds() {
+        rgb_unclamped.clamp()
     } else {
-        let rgb_unclamped = Srgb::from_color_unclamped(*lab);
-        if rgb_unclamped.is_within_bounds() {
-            rgb_unclamped.clamp()
-        } else {
-            Srgb::new(0f32, 0f32, 0f32)
-        }
+        Srgb::new(0f32, 0f32, 0f32)
     }
 }
 
-fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
+fn make_buf<F>(func: F) -> Vec<u8>
+where
+    F: Fn(f32, f32) -> [u8; 4] + Sync,
+{
     let mut buf = vec![0u8; IMG_SIZE * IMG_SIZE * 4];
     buf.par_chunks_exact_mut(IMG_SIZE * 4)
         .enumerate()
         .for_each(|(y, row)| {
             let normy = y as f32 / IMG_SIZE as f32;
             row.chunks_exact_mut(4).enumerate().for_each(|(x, pixel)| {
-                assert!(pixel.len() == 4);
+                debug_assert!(pixel.len() == 4);
                 let normx = x as f32 / IMG_SIZE as f32;
-                let lab = palette::Oklab::new(params.l, normx * 2. - 1., normy * 2. - 1.);
-                let rgb = oklab_to_srgb(&lab, true).into_format();
-                // let rgb_unclamped = Srgb::from_color_unclamped(lab);
-                // let rgb = if rgb_unclamped.is_within_bounds() {
-                //     rgb_unclamped.clamp().into_format()
-                // } else {
-                //     Srgb::new(0u8, 0u8, 0u8)
-                // };
-                pixel[0] = rgb.red;
-                pixel[1] = rgb.green;
-                pixel[2] = rgb.blue;
-                pixel[3] = 0xff;
+                let p = func(normx, normy);
+                pixel.clone_from_slice(&p);
             });
         });
+    buf
+}
+
+fn make_lightness_map(l: f32) -> impl Fn(f32, f32) -> [u8; 4] {
+    move |normx, normy| {
+        let lab = palette::Oklab::new(l, normx * 2. - 1., normy * 2. - 1.);
+        let rgb = oklab_to_srgb_clipped(&lab).into_format();
+        [rgb.red, rgb.green, rgb.blue, 0xff]
+    }
+}
+
+fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
+    let buf = make_buf(make_lightness_map(params.l));
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
