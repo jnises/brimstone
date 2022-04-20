@@ -120,6 +120,7 @@ impl epi::App for Gui {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
+                    ui.set_min_width(200.);
                     ui.add(
                         egui::Slider::new(&mut newparams.l0, Oklab::min_l()..=Oklab::max_l())
                             .text("L0"),
