@@ -70,6 +70,7 @@ pub fn oklab_to_linear_srgb(c: OKLab) -> LinearRGB {
 // Saturation here is defined as S = C/L
 // a and b must be normalized so a^2 + b^2 == 1
 fn compute_max_saturation(a: f32, b: f32) -> f32 {
+    debug_assert!((a.powi(2) + b.powi(2) - 1.).abs() < 0.0001);
     // Max saturation will be when one of r, g or b goes below zero.
 
     // Select different coefficients depending on which component goes below zero first
@@ -146,7 +147,7 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
         let f1 = wl * l_ds + wm * m_ds + ws * s_ds;
         let f2 = wl * l_ds2 + wm * m_ds2 + ws * s_ds2;
 
-        s = s - f * f1 / (f1 * f1 - 0.5f32 * f * f2);
+        s = s - f / f1 * f1 - 0.5f32 * f * f2;
     }
 
     s
@@ -160,6 +161,7 @@ struct LC {
 }
 
 fn find_cusp(a: f32, b: f32) -> LC {
+    debug_assert!((a.powi(2) + b.powi(2) - 1.).abs() < 0.0001);
     // First, find the maximum saturation (saturation S = C/L)
     let s_cusp = compute_max_saturation(a, b);
 
@@ -183,6 +185,7 @@ fn find_cusp(a: f32, b: f32) -> LC {
 // C = t * C1;
 // a and b must be normalized so a^2 + b^2 == 1
 fn find_gamut_intersection(a: f32, b: f32, l1: f32, c1: f32, l0: f32) -> f32 {
+    debug_assert!((a.powi(2) + b.powi(2) - 1.).abs() < 0.0001);
     // Find the cusp of the gamut triangle
     let cusp = find_cusp(a, b);
 
@@ -365,7 +368,14 @@ pub fn gamut_clip_adaptive_l0_0_5_alpha(rgb: LinearRGB, alpha: f32) -> LinearRGB
 
     let l = lab.l;
     let eps = 0.00001f32;
-    let c = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
+    let c = f32::sqrt(lab.a.powi(2) + lab.b.powi(2));
+    if c < eps {
+        return oklab_to_linear_srgb(OKLab {
+            l: l.clamp(0., 1.),
+            a: lab.a,
+            b: lab.b,
+        });
+    }
     let a_ = lab.a / c;
     let b_ = lab.b / c;
 
@@ -419,4 +429,21 @@ pub fn gamut_clip_adaptive_l0_l_cusp_alpha(rgb: LinearRGB, alpha: f32) -> Linear
         a: c_clipped * a_,
         b: c_clipped * b_,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn origo() {
+        let linsrgb = oklab_to_linear_srgb(OKLab {
+            l: 0.,
+            a: 0.,
+            b: 0.,
+        });
+        let clipped = gamut_clip_adaptive_l0_0_5(linsrgb);
+        assert!(clipped.r.abs() < 0.0001);
+        assert!(clipped.g.abs() < 0.0001);
+        assert!(clipped.b.abs() < 0.0001);
+    }
 }
