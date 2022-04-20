@@ -134,17 +134,17 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
         let m = m_ * m_ * m_;
         let s = s_ * s_ * s_;
 
-        let l_dS = 3. * k_l * l_ * l_;
-        let m_dS = 3. * k_m * m_ * m_;
-        let s_dS = 3. * k_s * s_ * s_;
+        let l_d_s = 3. * k_l * l_ * l_;
+        let m_d_s = 3. * k_m * m_ * m_;
+        let s_d_s = 3. * k_s * s_ * s_;
 
-        let l_dS2 = 6. * k_l * k_l * l_;
-        let m_dS2 = 6. * k_m * k_m * m_;
-        let s_dS2 = 6. * k_s * k_s * s_;
+        let l_d_s_2 = 6. * k_l * k_l * l_;
+        let m_d_s_2 = 6. * k_m * k_m * m_;
+        let s_d_s_2 = 6. * k_s * k_s * s_;
 
         let f = wl * l + wm * m + ws * s;
-        let f1 = wl * l_dS + wm * m_dS + ws * s_dS;
-        let f2 = wl * l_dS2 + wm * m_dS2 + ws * s_dS2;
+        let f1 = wl * l_d_s + wm * m_d_s + ws * s_d_s;
+        let f2 = wl * l_d_s_2 + wm * m_d_s_2 + ws * s_d_s_2;
 
         S = S - f * f1 / (f1 * f1 - 0.5f32 * f * f2);
     }
@@ -155,26 +155,26 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
 // finds L_cusp and C_cusp for a given hue
 // a and b must be normalized so a^2 + b^2 == 1
 struct LC {
-    L: f32,
-    C: f32,
+    l: f32,
+    c: f32,
 }
 
 fn find_cusp(a: f32, b: f32) -> LC {
     // First, find the maximum saturation (saturation S = C/L)
-    let S_cusp = compute_max_saturation(a, b);
+    let s_cusp = compute_max_saturation(a, b);
 
     // Convert to linear sRGB to find the first point where at least one of r,g or b >= 1:
     let rgb_at_max = oklab_to_linear_srgb(OKLab {
         l: 1.,
-        a: S_cusp * a,
-        b: S_cusp * b,
+        a: s_cusp * a,
+        b: s_cusp * b,
     });
-    let L_cusp = (1. / rgb_at_max.r.max(rgb_at_max.g.max(rgb_at_max.b))).cbrt();
-    let C_cusp = L_cusp * S_cusp;
+    let l_cusp = (1. / rgb_at_max.r.max(rgb_at_max.g.max(rgb_at_max.b))).cbrt();
+    let c_cusp = l_cusp * s_cusp;
 
     LC {
-        L: L_cusp,
-        C: C_cusp,
+        l: l_cusp,
+        c: c_cusp,
     }
 }
 
@@ -182,44 +182,44 @@ fn find_cusp(a: f32, b: f32) -> LC {
 // L = L0 * (1 - t) + t * L1;
 // C = t * C1;
 // a and b must be normalized so a^2 + b^2 == 1
-fn find_gamut_intersection(a: f32, b: f32, L1: f32, C1: f32, L0: f32) -> f32 {
+fn find_gamut_intersection(a: f32, b: f32, l_1: f32, c_1: f32, l_0: f32) -> f32 {
     // Find the cusp of the gamut triangle
     let cusp = find_cusp(a, b);
 
     // Find the intersection for upper and lower half seprately
-    let t = if ((L1 - L0) * cusp.C - (cusp.L - L0) * C1) <= 0. {
+    let t = if ((l_1 - l_0) * cusp.c - (cusp.l - l_0) * c_1) <= 0. {
         // Lower half
 
-        cusp.C * L0 / (C1 * cusp.L + cusp.C * (L0 - L1))
+        cusp.c * l_0 / (c_1 * cusp.l + cusp.c * (l_0 - l_1))
     } else {
         // Upper half
 
         // First intersect with triangle
-        let mut t = cusp.C * (L0 - 1.) / (C1 * (cusp.L - 1.) + cusp.C * (L0 - L1));
+        let mut t = cusp.c * (l_0 - 1.) / (c_1 * (cusp.l - 1.) + cusp.c * (l_0 - l_1));
 
         // Then one step Halley's method
         {
-            let dL = L1 - L0;
-            let dC = C1;
+            let d_l = l_1 - l_0;
+            let d_c = c_1;
 
             let k_l = 0.3963377774f32 * a + 0.2158037573f32 * b;
             let k_m = -0.1055613458f32 * a - 0.0638541728f32 * b;
             let k_s = -0.0894841775f32 * a - 1.2914855480f32 * b;
 
-            let l_dt = dL + dC * k_l;
-            let m_dt = dL + dC * k_m;
-            let s_dt = dL + dC * k_s;
+            let l_dt = d_l + d_c * k_l;
+            let m_dt = d_l + d_c * k_m;
+            let s_dt = d_l + d_c * k_s;
 
             // If higher accuracy is required, 2 or 3 iterations of the following block can be used:
             {
-                let L = L0 * (1. - t) + t * L1;
-                let C = t * C1;
+                let l = l_0 * (1. - t) + t * l_1;
+                let c = t * c_1;
 
-                let l_ = L + C * k_l;
-                let m_ = L + C * k_m;
-                let s_ = L + C * k_s;
+                let l_ = l + c * k_l;
+                let m_ = l + c * k_m;
+                let s_ = l + c * k_s;
 
-                let l = l_ * l_ * l_;
+                let lo = l_ * l_ * l_;
                 let m = m_ * m_ * m_;
                 let s = s_ * s_ * s_;
 
@@ -231,21 +231,21 @@ fn find_gamut_intersection(a: f32, b: f32, L1: f32, C1: f32, L0: f32) -> f32 {
                 let mdt2 = 6. * m_dt * m_dt * m_;
                 let sdt2 = 6. * s_dt * s_dt * s_;
 
-                let r = 4.0767416621f32 * l - 3.3077115913f32 * m + 0.2309699292f32 * s - 1.;
+                let r = 4.0767416621f32 * lo - 3.3077115913f32 * m + 0.2309699292f32 * s - 1.;
                 let r1 = 4.0767416621f32 * ldt - 3.3077115913f32 * mdt + 0.2309699292f32 * sdt;
                 let r2 = 4.0767416621f32 * ldt2 - 3.3077115913f32 * mdt2 + 0.2309699292f32 * sdt2;
 
                 let u_r = r1 / (r1 * r1 - 0.5f32 * r * r2);
                 let mut t_r = -r * u_r;
 
-                let g = -1.2684380046f32 * l + 2.6097574011f32 * m - 0.3413193965f32 * s - 1.;
+                let g = -1.2684380046f32 * lo + 2.6097574011f32 * m - 0.3413193965f32 * s - 1.;
                 let g1 = -1.2684380046f32 * ldt + 2.6097574011f32 * mdt - 0.3413193965f32 * sdt;
                 let g2 = -1.2684380046f32 * ldt2 + 2.6097574011f32 * mdt2 - 0.3413193965f32 * sdt2;
 
                 let u_g = g1 / (g1 * g1 - 0.5f32 * g * g2);
                 let mut t_g = -g * u_g;
 
-                let b = -0.0041960863f32 * l - 0.7034186147f32 * m + 1.7076147010f32 * s - 1.;
+                let b = -0.0041960863f32 * lo - 0.7034186147f32 * m + 1.7076147010f32 * s - 1.;
                 let b1 = -0.0041960863f32 * ldt - 0.7034186147f32 * mdt + 1.7076147010f32 * sdt;
                 let b2 = -0.0041960863f32 * ldt2 - 0.7034186147f32 * mdt2 + 1.7076147010f32 * sdt2;
 
@@ -277,22 +277,22 @@ pub fn gamut_clip_preserve_chroma(rgb: LinearRGB) -> LinearRGB {
 
     let lab = linear_srgb_to_oklab(rgb);
 
-    let L = lab.l;
+    let l = lab.l;
     let eps = 0.00001f32;
-    let C = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
-    let a_ = lab.a / C;
-    let b_ = lab.b / C;
+    let c = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
+    let a_ = lab.a / c;
+    let b_ = lab.b / c;
 
-    let L0 = L.clamp(0., 1.);
+    let l_0 = l.clamp(0., 1.);
 
-    let t = find_gamut_intersection(a_, b_, L, C, L0);
-    let L_clipped = L0 * (1. - t) + t * L;
-    let C_clipped = t * C;
+    let t = find_gamut_intersection(a_, b_, l, c, l_0);
+    let l_clipped = l_0 * (1. - t) + t * l;
+    let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
-        l: L_clipped,
-        a: C_clipped * a_,
-        b: C_clipped * b_,
+        l: l_clipped,
+        a: c_clipped * a_,
+        b: c_clipped * b_,
     })
 }
 
@@ -303,22 +303,22 @@ pub fn gamut_clip_project_to_0_5(rgb: LinearRGB) -> LinearRGB {
 
     let lab = linear_srgb_to_oklab(rgb);
 
-    let L = lab.l;
+    let l = lab.l;
     let eps = 0.00001f32;
-    let C = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
-    let a_ = lab.a / C;
-    let b_ = lab.b / C;
+    let c = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
+    let a_ = lab.a / c;
+    let b_ = lab.b / c;
 
-    let L0 = 0.5;
+    let l_0 = 0.5;
 
-    let t = find_gamut_intersection(a_, b_, L, C, L0);
-    let L_clipped = L0 * (1. - t) + t * L;
-    let C_clipped = t * C;
+    let t = find_gamut_intersection(a_, b_, l, c, l_0);
+    let l_clipped = l_0 * (1. - t) + t * l;
+    let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
-        l: L_clipped,
-        a: C_clipped * a_,
-        b: C_clipped * b_,
+        l: l_clipped,
+        a: c_clipped * a_,
+        b: c_clipped * b_,
     })
 }
 
@@ -329,94 +329,94 @@ pub fn gamut_clip_project_to_L_cusp(rgb: LinearRGB) -> LinearRGB {
 
     let lab = linear_srgb_to_oklab(rgb);
 
-    let L = lab.l;
+    let l = lab.l;
     let eps = 0.00001f32;
-    let C = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
-    let a_ = lab.a / C;
-    let b_ = lab.b / C;
+    let c = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
+    let a_ = lab.a / c;
+    let b_ = lab.b / c;
 
     // The cusp is computed here and in find_gamut_intersection, an optimized solution would only compute it once.
     let cusp = find_cusp(a_, b_);
 
-    let L0 = cusp.L;
+    let l_0 = cusp.l;
 
-    let t = find_gamut_intersection(a_, b_, L, C, L0);
+    let t = find_gamut_intersection(a_, b_, l, c, l_0);
 
-    let L_clipped = L0 * (1. - t) + t * L;
-    let C_clipped = t * C;
+    let l_clipped = l_0 * (1. - t) + t * l;
+    let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
-        l: L_clipped,
-        a: C_clipped * a_,
-        b: C_clipped * b_,
+        l: l_clipped,
+        a: c_clipped * a_,
+        b: c_clipped * b_,
     })
 }
 
-pub fn gamut_clip_adaptive_L0_0_5(rgb: LinearRGB) -> LinearRGB {
-    gamut_clip_adaptive_L0_0_5_alpha(rgb, 0.05)
+pub fn gamut_clip_adaptive_l0_0_5(rgb: LinearRGB) -> LinearRGB {
+    gamut_clip_adaptive_l0_0_5_alpha(rgb, 0.05)
 }
 
-pub fn gamut_clip_adaptive_L0_0_5_alpha(rgb: LinearRGB, alpha: f32) -> LinearRGB {
+pub fn gamut_clip_adaptive_l0_0_5_alpha(rgb: LinearRGB, alpha: f32) -> LinearRGB {
     if rgb.r < 1. && rgb.g < 1. && rgb.b < 1. && rgb.r > 0. && rgb.g > 0. && rgb.b > 0. {
         return rgb;
     }
 
     let lab = linear_srgb_to_oklab(rgb);
 
-    let L = lab.l;
+    let l = lab.l;
     let eps = 0.00001f32;
-    let C = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
-    let a_ = lab.a / C;
-    let b_ = lab.b / C;
+    let c = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
+    let a_ = lab.a / c;
+    let b_ = lab.b / c;
 
-    let Ld = L - 0.5;
-    let e1 = 0.5 + Ld.abs() + alpha * C;
-    let L0 = 0.5 * (1. + sgn(Ld) * (e1 - f32::sqrt(e1 * e1 - 2. * Ld.abs())));
+    let l_d = l - 0.5;
+    let e1 = 0.5 + l_d.abs() + alpha * c;
+    let l_0 = 0.5 * (1. + sgn(l_d) * (e1 - f32::sqrt(e1 * e1 - 2. * l_d.abs())));
 
-    let t = find_gamut_intersection(a_, b_, L, C, L0);
-    let L_clipped = L0 * (1. - t) + t * L;
-    let C_clipped = t * C;
+    let t = find_gamut_intersection(a_, b_, l, c, l_0);
+    let l_clipped = l_0 * (1. - t) + t * l;
+    let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
-        l: L_clipped,
-        a: C_clipped * a_,
-        b: C_clipped * b_,
+        l: l_clipped,
+        a: c_clipped * a_,
+        b: c_clipped * b_,
     })
 }
 
-pub fn gamut_clip_adaptive_L0_L_cusp(rgb: LinearRGB) -> LinearRGB {
-    gamut_clip_adaptive_L0_L_cusp_alpha(rgb, 0.05)
+pub fn gamut_clip_adaptive_l0_l_cusp(rgb: LinearRGB) -> LinearRGB {
+    gamut_clip_adaptive_l0_l_cusp_alpha(rgb, 0.05)
 }
 
-pub fn gamut_clip_adaptive_L0_L_cusp_alpha(rgb: LinearRGB, alpha: f32) -> LinearRGB {
+pub fn gamut_clip_adaptive_l0_l_cusp_alpha(rgb: LinearRGB, alpha: f32) -> LinearRGB {
     if rgb.r < 1. && rgb.g < 1. && rgb.b < 1. && rgb.r > 0. && rgb.g > 0. && rgb.b > 0. {
         return rgb;
     }
 
     let lab = linear_srgb_to_oklab(rgb);
 
-    let L = lab.l;
+    let l = lab.l;
     let eps = 0.00001f32;
-    let C = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
-    let a_ = lab.a / C;
-    let b_ = lab.b / C;
+    let c = eps.max(f32::sqrt(lab.a * lab.a + lab.b * lab.b));
+    let a_ = lab.a / c;
+    let b_ = lab.b / c;
 
     // The cusp is computed here and in find_gamut_intersection, an optimized solution would only compute it once.
     let cusp = find_cusp(a_, b_);
 
-    let Ld = L - cusp.L;
-    let k = 2. * if Ld > 0. { 1. - cusp.L } else { cusp.L };
+    let l_d = l - cusp.l;
+    let k = 2. * if l_d > 0. { 1. - cusp.l } else { cusp.l };
 
-    let e1 = 0.5 * k + Ld.abs() + alpha * C / k;
-    let L0 = cusp.L + 0.5 * (sgn(Ld) * (e1 - f32::sqrt(e1 * e1 - 2. * k * Ld.abs())));
+    let e1 = 0.5 * k + l_d.abs() + alpha * c / k;
+    let l_0 = cusp.l + 0.5 * (sgn(l_d) * (e1 - f32::sqrt(e1 * e1 - 2. * k * l_d.abs())));
 
-    let t = find_gamut_intersection(a_, b_, L, C, L0);
-    let L_clipped = L0 * (1. - t) + t * L;
-    let C_clipped = t * C;
+    let t = find_gamut_intersection(a_, b_, l, c, l_0);
+    let l_clipped = l_0 * (1. - t) + t * l;
+    let c_clipped = t * c;
 
     oklab_to_linear_srgb(OKLab {
-        l: L_clipped,
-        a: C_clipped * a_,
-        b: C_clipped * b_,
+        l: l_clipped,
+        a: c_clipped * a_,
+        b: c_clipped * b_,
     })
 }

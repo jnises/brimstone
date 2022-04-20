@@ -35,7 +35,7 @@ fn oklab_to_srgb(lab: &palette::Oklab, map: bool) -> Srgb<f32> {
             a: lab.a,
             b: lab.b,
         });
-        let mapped = gamut_mapping::gamut_clip_adaptive_L0_0_5(linear);
+        let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5(linear);
         //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
         //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
         //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
