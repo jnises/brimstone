@@ -20,6 +20,7 @@ struct Params {
     ad: f32,
     b0: f32,
     bd: f32,
+    clip: bool,
 }
 
 impl Default for Params {
@@ -27,7 +28,7 @@ impl Default for Params {
         let l0 = (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.;
         let a0 = (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.;
         let b0 = (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.;
-        Self { l0, a0, b0, ld: 0., ad: 0., bd: 0. }
+        Self { l0, a0, b0, ld: 0., ad: 0., bd: 0., clip: true }
     }
 }
 
@@ -81,19 +82,19 @@ fn make_lightness_map(l: f32) -> impl Fn(f32, f32) -> [u8; 4] {
     }
 }
 
-fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32) -> impl Fn(f32, f32) -> [u8; 4] {
+fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32, clip: bool) -> impl Fn(f32, f32) -> [u8; 4] {
     move |x, _| {
         let l = l0 + x * ld;
         let a = a0 + x * ad;
         let b = b0 + x * bd;
         let lab = palette::Oklab::new(l, a, b);
-        let rgb = oklab_to_srgb_clipped(&lab).into_format();
+        let rgb = if clip { oklab_to_srgb_clipped(&lab) } else { oklab_to_srgb(&lab) }.into_format();
         [rgb.red, rgb.green, rgb.blue, 0xff]
     }
 }
 
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
-    let buf = make_buf(make_linear_gradient(params.l0, params.ld, params.a0, params.ad, params.b0, params.bd));
+    let buf = make_buf(make_linear_gradient(params.l0, params.ld, params.a0, params.ad, params.b0, params.bd, params.clip));
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
@@ -145,6 +146,7 @@ impl epi::App for Gui {
                         egui::Slider::new(&mut newparams.bd, -1f32..=1.)
                             .text("bd"),
                     );
+                    ui.checkbox(&mut newparams.clip, "clip");
                 });
                 ui.vertical(|ui| {
                     match &self.texture {
