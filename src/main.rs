@@ -20,7 +20,7 @@ struct Params {
     ad: f32,
     b0: f32,
     bd: f32,
-    clip: bool,
+    extend: bool,
 }
 
 impl Default for Params {
@@ -28,7 +28,7 @@ impl Default for Params {
         let l0 = (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.;
         let a0 = (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.;
         let b0 = (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.;
-        Self { l0, a0, b0, ld: 0., ad: 0., bd: 0., clip: true }
+        Self { l0, a0, b0, ld: 0., ad: 0., bd: 0., extend: true }
     }
 }
 
@@ -38,6 +38,8 @@ fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
         a: lab.a,
         b: lab.b,
     });
+    // TODO make clip edge smooth?
+    //let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5_alpha(linear, 0.);
     let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5(linear);
     //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
     //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
@@ -94,7 +96,7 @@ fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32, cl
 }
 
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
-    let buf = make_buf(make_linear_gradient(params.l0, params.ld, params.a0, params.ad, params.b0, params.bd, params.clip));
+    let buf = make_buf(make_linear_gradient(params.l0, params.ld, params.a0, params.ad, params.b0, params.bd, params.extend));
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
@@ -146,7 +148,7 @@ impl epi::App for Gui {
                         egui::Slider::new(&mut newparams.bd, -1f32..=1.)
                             .text("bd"),
                     );
-                    ui.checkbox(&mut newparams.clip, "clip");
+                    ui.checkbox(&mut newparams.extend, "extend");
                 });
                 ui.vertical(|ui| {
                     match &self.texture {
