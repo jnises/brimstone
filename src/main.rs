@@ -25,7 +25,7 @@ impl Default for Params {
 
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
     // create the buffer in a more efficient way
-    let mut buf = Box::new([0u8; IMG_SIZE * IMG_SIZE * 4]);
+    let mut buf = vec![0u8; IMG_SIZE * IMG_SIZE * 4];
     for y in 0..IMG_SIZE {
         let normy = y as f32 / IMG_SIZE as f32;
         for x in 0..IMG_SIZE {
@@ -44,7 +44,7 @@ fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egu
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
         // egui::ColorImage::new(
         //     [IMG_SIZE, IMG_SIZE],
-        //     Color32::from_rgb(color.red, color.green, color.blue),
+        //     Color32::from_rgb(0, 0, 0),//color.red, color.green, color.blue),
         // ),
     )
     // let lab = palette::Oklab::new(params.l, params.a, params.b).clamp();
