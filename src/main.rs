@@ -21,6 +21,16 @@ fn oklab_to_vec3(lab: Oklab) -> Vec3 {
     vec3(lab.l, lab.a, lab.b)
 }
 
+const NEUTRAL_LAB: Oklab = Oklab {
+    l: 0.5,
+    a: 0.,
+    b: 0.,
+    // TODO use these once they are const
+    // l: (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.,
+    // a: (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.,
+    // b: (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.,
+};
+
 #[derive(Clone, PartialEq)]
 struct Params {
     center: Oklab,
@@ -32,15 +42,10 @@ struct Params {
 
 impl Default for Params {
     fn default() -> Self {
-        let center = Oklab {
-            l: (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.,
-            a: (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.,
-            b: (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.,
-        };
         Self {
-            center,
+            center: NEUTRAL_LAB,
             x_slope: Oklab::default(),
-            y_offset: Oklab::default(),
+            y_offset: NEUTRAL_LAB,
             y_slope: Oklab::default(),
             extend: true,
         }
@@ -113,10 +118,35 @@ fn make_linear_gradient(center: Oklab, x_slope: Oklab, clip: bool) -> impl Fn(f3
     }
 }
 
+fn make_2d_gradient(
+    center: Oklab,
+    x_slope: Oklab,
+    y_offset: Oklab,
+    y_slope: Oklab,
+    clip: bool,
+) -> impl Fn(f32, f32) -> Srgb {
+    move |x, y| {
+        let xcenter = x - 0.5;
+        let ycenter = y - 0.5;
+        let lab = vec3_to_oklab(
+            oklab_to_vec3(center) + xcenter * oklab_to_vec3(x_slope) + oklab_to_vec3(y_offset)
+                - vec3(0.5, 0., 0.)
+                + ycenter * oklab_to_vec3(y_slope),
+        );
+        if clip {
+            oklab_to_srgb_clipped(&lab)
+        } else {
+            oklab_to_srgb(&lab)
+        }
+    }
+}
+
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
-    let buf = make_buf(make_linear_gradient(
+    let buf = make_buf(make_2d_gradient(
         params.center,
         params.x_slope,
+        params.y_offset,
+        params.y_slope,
         params.extend,
     ));
     ctx.load_texture(
@@ -126,9 +156,11 @@ fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egu
 }
 
 fn save_image_from_params<P: AsRef<std::path::Path>>(params: &Params, path: P) {
-    let buf = make_buf(make_linear_gradient(
+    let buf = make_buf(make_2d_gradient(
         params.center,
         params.x_slope,
+        params.y_offset,
+        params.y_slope,
         params.extend,
     ));
     if let Err(e) = image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_vec(
@@ -165,6 +197,10 @@ fn lab_slope_gui(ui: &mut Ui, center: &mut Oklab, slope: &mut Oklab) {
     ui.add(egui::Slider::new(&mut slope.a, -1f32..=1.).text("a slope"));
     ui.add(egui::Slider::new(&mut center.b, Oklab::min_b()..=Oklab::max_b()).text("b center"));
     ui.add(egui::Slider::new(&mut slope.b, -1f32..=1.).text("b slope"));
+    if ui.add(egui::Button::new("reset")).clicked() {
+        *center = NEUTRAL_LAB;
+        *slope = Oklab::new(0., 0., 0.);
+    }
 }
 
 impl epi::App for Gui {
@@ -177,10 +213,14 @@ impl epi::App for Gui {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
-                    ui.set_min_width(200.);
+                    ui.set_min_width(250.);
                     ui.group(|ui| {
                         ui.label("x");
                         lab_slope_gui(ui, &mut newparams.center, &mut newparams.x_slope);
+                    });
+                    ui.group(|ui| {
+                        ui.label("y");
+                        lab_slope_gui(ui, &mut newparams.y_offset, &mut newparams.y_slope);
                     });
                     ui.checkbox(&mut newparams.extend, "extend");
                 });
