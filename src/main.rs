@@ -3,7 +3,9 @@ use eframe::{
     egui::{self, Vec2},
     epi,
 };
-use palette::{convert::FromColorUnclamped, Clamp, Oklab, Srgb, FromComponent, Component};
+use image::Rgba32FImage;
+use native_dialog::{FileDialog, MessageDialog, MessageType};
+use palette::{convert::FromColorUnclamped, Clamp, Component, FromComponent, Oklab, Srgb};
 use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,
@@ -27,7 +29,15 @@ impl Default for Params {
         let l0 = (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.;
         let a0 = (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.;
         let b0 = (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.;
-        Self { l0, a0, b0, ld: 0., ad: 0., bd: 0., extend: true }
+        Self {
+            l0,
+            a0,
+            b0,
+            ld: 0.,
+            ad: 0.,
+            bd: 0.,
+            extend: true,
+        }
     }
 }
 
@@ -43,7 +53,7 @@ fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
     //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
     //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
     //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
-    //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);    
+    //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
     //let mapped = gamut_mapping::gamut_clip_project_to_l_cusp(linear);
     Srgb::from_linear(palette::LinSrgb::new(mapped.r, mapped.g, mapped.b))
 }
@@ -85,22 +95,69 @@ fn make_lightness_map(l: f32) -> impl Fn(f32, f32) -> [u8; 4] {
     }
 }
 
-fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32, clip: bool) -> impl Fn(f32, f32) -> Srgb {
+fn make_linear_gradient(
+    l0: f32,
+    ld: f32,
+    a0: f32,
+    ad: f32,
+    b0: f32,
+    bd: f32,
+    clip: bool,
+) -> impl Fn(f32, f32) -> Srgb {
     move |x, _| {
         let l = l0 + x * ld;
         let a = a0 + x * ad;
         let b = b0 + x * bd;
         let lab = palette::Oklab::new(l, a, b);
-        if clip { oklab_to_srgb_clipped(&lab) } else { oklab_to_srgb(&lab) }
+        if clip {
+            oklab_to_srgb_clipped(&lab)
+        } else {
+            oklab_to_srgb(&lab)
+        }
     }
 }
 
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
-    let buf = make_buf(make_linear_gradient(params.l0, params.ld, params.a0, params.ad, params.b0, params.bd, params.extend));
+    let buf = make_buf(make_linear_gradient(
+        params.l0,
+        params.ld,
+        params.a0,
+        params.ad,
+        params.b0,
+        params.bd,
+        params.extend,
+    ));
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], buf.as_ref()),
     )
+}
+
+fn save_image_from_params<P: AsRef<std::path::Path>>(params: &Params, path: P) {
+    let buf = make_buf(make_linear_gradient(
+        params.l0,
+        params.ld,
+        params.a0,
+        params.ad,
+        params.b0,
+        params.bd,
+        params.extend,
+    ));
+    if let Err(e) = image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_vec(
+        IMG_SIZE as u32,
+        IMG_SIZE as u32,
+        buf,
+    )
+    .unwrap()
+    .save(path)
+    {
+        MessageDialog::new()
+            .set_type(MessageType::Error)
+            .set_title("Error saving image")
+            .set_text(&e.to_string())
+            .show_alert()
+            .unwrap();
+    }
 }
 
 struct Gui {
@@ -128,26 +185,17 @@ impl epi::App for Gui {
                         egui::Slider::new(&mut newparams.l0, Oklab::min_l()..=Oklab::max_l())
                             .text("L0"),
                     );
-                    ui.add(
-                        egui::Slider::new(&mut newparams.ld, -1f32..=1.)
-                            .text("Ld"),
-                    );
+                    ui.add(egui::Slider::new(&mut newparams.ld, -1f32..=1.).text("Ld"));
                     ui.add(
                         egui::Slider::new(&mut newparams.a0, Oklab::min_a()..=Oklab::max_a())
                             .text("a0"),
                     );
-                    ui.add(
-                        egui::Slider::new(&mut newparams.ad, -1f32..=1.)
-                            .text("ad"),
-                    );
+                    ui.add(egui::Slider::new(&mut newparams.ad, -1f32..=1.).text("ad"));
                     ui.add(
                         egui::Slider::new(&mut newparams.b0, Oklab::min_b()..=Oklab::max_b())
                             .text("b0"),
                     );
-                    ui.add(
-                        egui::Slider::new(&mut newparams.bd, -1f32..=1.)
-                            .text("bd"),
-                    );
+                    ui.add(egui::Slider::new(&mut newparams.bd, -1f32..=1.).text("bd"));
                     ui.checkbox(&mut newparams.extend, "extend");
                 });
                 ui.vertical(|ui| {
@@ -155,11 +203,19 @@ impl epi::App for Gui {
                         Some((params, _)) if params == &newparams => {}
                         _ => {
                             let tex = make_texture_from_params(ctx, &newparams);
-                            self.texture = Some((newparams, tex));
+                            self.texture = Some((newparams.clone(), tex));
                         }
                     }
                     let texture = &self.texture.as_ref().unwrap().1;
                     ui.image(texture, texture.size_vec2());
+                    if ui.add(egui::Button::new("save")).clicked() {
+                        if let Ok(Some(path)) = FileDialog::new()
+                            .add_filter("PNG Image", &["png"])
+                            .show_save_single_file()
+                        {
+                            save_image_from_params(&newparams, path);
+                        }
+                    }
                 });
             });
         });
