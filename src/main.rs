@@ -1,9 +1,9 @@
 mod gamut_mapping;
 use eframe::{
-    egui::{self, Vec2},
+    egui::{self, Ui, Vec2},
     epi,
 };
-use image::Rgba32FImage;
+use glam::{vec3, Vec3};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use palette::{convert::FromColorUnclamped, Clamp, Component, FromComponent, Oklab, Srgb};
 use rayon::{
@@ -13,29 +13,35 @@ use rayon::{
 
 const IMG_SIZE: usize = 512;
 
+fn vec3_to_oklab(vec: Vec3) -> Oklab {
+    Oklab::new(vec.x, vec.y, vec.z)
+}
+
+fn oklab_to_vec3(lab: Oklab) -> Vec3 {
+    vec3(lab.l, lab.a, lab.b)
+}
+
 #[derive(Clone, PartialEq)]
 struct Params {
-    l0: f32,
-    ld: f32,
-    a0: f32,
-    ad: f32,
-    b0: f32,
-    bd: f32,
+    center: Oklab,
+    x_slope: Oklab,
+    y_offset: Oklab,
+    y_slope: Oklab,
     extend: bool,
 }
 
 impl Default for Params {
     fn default() -> Self {
-        let l0 = (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.;
-        let a0 = (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.;
-        let b0 = (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.;
+        let center = Oklab {
+            l: (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.,
+            a: (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.,
+            b: (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.,
+        };
         Self {
-            l0,
-            a0,
-            b0,
-            ld: 0.,
-            ad: 0.,
-            bd: 0.,
+            center,
+            x_slope: Oklab::default(),
+            y_offset: Oklab::default(),
+            y_slope: Oklab::default(),
             extend: true,
         }
     }
@@ -95,21 +101,10 @@ fn make_lightness_map(l: f32) -> impl Fn(f32, f32) -> [u8; 4] {
     }
 }
 
-fn make_linear_gradient(
-    l0: f32,
-    ld: f32,
-    a0: f32,
-    ad: f32,
-    b0: f32,
-    bd: f32,
-    clip: bool,
-) -> impl Fn(f32, f32) -> Srgb {
+fn make_linear_gradient(center: Oklab, x_slope: Oklab, clip: bool) -> impl Fn(f32, f32) -> Srgb {
     move |x, _| {
         let xcenter = x - 0.5;
-        let l = l0 + xcenter * ld;
-        let a = a0 + xcenter * ad;
-        let b = b0 + xcenter * bd;
-        let lab = palette::Oklab::new(l, a, b);
+        let lab = vec3_to_oklab(oklab_to_vec3(center) + xcenter * oklab_to_vec3(x_slope));
         if clip {
             oklab_to_srgb_clipped(&lab)
         } else {
@@ -120,12 +115,8 @@ fn make_linear_gradient(
 
 fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egui::TextureHandle {
     let buf = make_buf(make_linear_gradient(
-        params.l0,
-        params.ld,
-        params.a0,
-        params.ad,
-        params.b0,
-        params.bd,
+        params.center,
+        params.x_slope,
         params.extend,
     ));
     ctx.load_texture(
@@ -136,12 +127,8 @@ fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egu
 
 fn save_image_from_params<P: AsRef<std::path::Path>>(params: &Params, path: P) {
     let buf = make_buf(make_linear_gradient(
-        params.l0,
-        params.ld,
-        params.a0,
-        params.ad,
-        params.b0,
-        params.bd,
+        params.center,
+        params.x_slope,
         params.extend,
     ));
     if let Err(e) = image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_vec(
@@ -171,6 +158,15 @@ impl Gui {
     }
 }
 
+fn lab_slope_gui(ui: &mut Ui, center: &mut Oklab, slope: &mut Oklab) {
+    ui.add(egui::Slider::new(&mut center.l, Oklab::min_l()..=Oklab::max_l()).text("L center"));
+    ui.add(egui::Slider::new(&mut slope.l, -1f32..=1.).text("L slope"));
+    ui.add(egui::Slider::new(&mut center.a, Oklab::min_a()..=Oklab::max_a()).text("a center"));
+    ui.add(egui::Slider::new(&mut slope.a, -1f32..=1.).text("a slope"));
+    ui.add(egui::Slider::new(&mut center.b, Oklab::min_b()..=Oklab::max_b()).text("b center"));
+    ui.add(egui::Slider::new(&mut slope.b, -1f32..=1.).text("b slope"));
+}
+
 impl epi::App for Gui {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &epi::Frame) {
         let mut newparams = if let Some((params, _)) = &self.texture {
@@ -182,21 +178,10 @@ impl epi::App for Gui {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.set_min_width(200.);
-                    ui.add(
-                        egui::Slider::new(&mut newparams.l0, Oklab::min_l()..=Oklab::max_l())
-                            .text("L0"),
-                    );
-                    ui.add(egui::Slider::new(&mut newparams.ld, -1f32..=1.).text("Ld"));
-                    ui.add(
-                        egui::Slider::new(&mut newparams.a0, Oklab::min_a()..=Oklab::max_a())
-                            .text("a0"),
-                    );
-                    ui.add(egui::Slider::new(&mut newparams.ad, -1f32..=1.).text("ad"));
-                    ui.add(
-                        egui::Slider::new(&mut newparams.b0, Oklab::min_b()..=Oklab::max_b())
-                            .text("b0"),
-                    );
-                    ui.add(egui::Slider::new(&mut newparams.bd, -1f32..=1.).text("bd"));
+                    ui.group(|ui| {
+                        ui.label("x");
+                        lab_slope_gui(ui, &mut newparams.center, &mut newparams.x_slope);
+                    });
                     ui.checkbox(&mut newparams.extend, "extend");
                 });
                 ui.vertical(|ui| {
