@@ -1,3 +1,6 @@
+#![allow(clippy::excessive_precision, dead_code)]
+#![deny(clippy::shadow_reuse, clippy::shadow_same, clippy::shadow_unrelated)]
+
 // converted to rust from https://bottosson.github.io/posts/gamutclipping/
 
 // Copyright (c) 2021 Björn Ottosson
@@ -248,12 +251,12 @@ fn find_gamut_intersection(a: f32, b: f32, l1: f32, c1: f32, l0: f32) -> f32 {
                 let u_g = g1 / (g1 * g1 - 0.5f32 * g * g2);
                 let mut t_g = -g * u_g;
 
-                let b = -0.0041960863f32 * lo - 0.7034186147f32 * m + 1.7076147010f32 * s - 1.;
+                let b_ = -0.0041960863f32 * lo - 0.7034186147f32 * m + 1.7076147010f32 * s - 1.;
                 let b1 = -0.0041960863f32 * ldt - 0.7034186147f32 * mdt + 1.7076147010f32 * sdt;
                 let b2 = -0.0041960863f32 * ldt2 - 0.7034186147f32 * mdt2 + 1.7076147010f32 * sdt2;
 
-                let u_b = b1 / (b1 * b1 - 0.5f32 * b * b2);
-                let mut t_b = -b * u_b;
+                let u_b = b1 / (b1 * b1 - 0.5f32 * b_ * b2);
+                let mut t_b = -b_ * u_b;
 
                 t_r = if u_r >= 0. { t_r } else { f32::MAX };
                 t_g = if u_g >= 0. { t_g } else { f32::MAX };
