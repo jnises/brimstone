@@ -34,7 +34,7 @@ const NEUTRAL_LAB: Oklab = Oklab {
 #[derive(Clone, PartialEq)]
 struct Params {
     center: Oklab,
-    // TODO change the ab parts to rotation,scale
+    // TODO change the ab parts to rotation,scale?
     x_slope: Oklab,
     y_offset: Oklab,
     y_slope: Oklab,
