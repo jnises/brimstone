@@ -34,6 +34,7 @@ const NEUTRAL_LAB: Oklab = Oklab {
 #[derive(Clone, PartialEq)]
 struct Params {
     center: Oklab,
+    // TODO change the ab parts to rotation,scale
     x_slope: Oklab,
     y_offset: Oklab,
     y_slope: Oklab,
@@ -58,7 +59,7 @@ fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
         a: lab.a,
         b: lab.b,
     });
-    // TODO make clip edge smooth?
+    // TODO make these selectable in gui
     //let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5_alpha(linear, 0.);
     let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5(linear);
     //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);

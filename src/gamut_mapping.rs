@@ -129,7 +129,7 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
     let k_m = -0.1055613458f32 * a - 0.0638541728f32 * b;
     let k_s = -0.0894841775f32 * a - 1.2914855480f32 * b;
 
-    {
+    for _ in 0..3 {
         let l_ = 1. + s * k_l;
         let m_ = 1. + s * k_m;
         let s_ = 1. + s * k_s;
@@ -217,7 +217,7 @@ fn find_gamut_intersection(a: f32, b: f32, l1: f32, c1: f32, l0: f32) -> f32 {
             let s_dt = dl + dc * k_s;
 
             // If higher accuracy is required, 2 or 3 iterations of the following block can be used:
-            {
+            for _ in 0..3 {
                 let l = l0 * (1. - t) + t * l1;
                 let c = t * c1;
 
