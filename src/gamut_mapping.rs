@@ -150,7 +150,7 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
         let f1 = wl * l_ds + wm * m_ds + ws * s_ds;
         let f2 = wl * l_ds2 + wm * m_ds2 + ws * s_ds2;
 
-        s = s - f / f1 * f1 - 0.5f32 * f * f2;
+        s = s - f / (f1 * f1 - 0.5f32 * f * f2);
     }
 
     s
