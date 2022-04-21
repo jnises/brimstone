@@ -3,7 +3,7 @@ use eframe::{
     egui::{self, Vec2},
     epi,
 };
-use palette::{convert::FromColorUnclamped, Clamp, Oklab, Srgb};
+use palette::{convert::FromColorUnclamped, Clamp, Oklab, Srgb, FromComponent, Component};
 use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,
@@ -43,7 +43,8 @@ fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
     //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
     //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
     //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
-    //let mapped = gamut_mapping::gamut_clip_project_to_L_cusp(linear);
+    //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);    
+    //let mapped = gamut_mapping::gamut_clip_project_to_l_cusp(linear);
     Srgb::from_linear(palette::LinSrgb::new(mapped.r, mapped.g, mapped.b))
 }
 
@@ -56,11 +57,12 @@ fn oklab_to_srgb(lab: &palette::Oklab) -> Srgb<f32> {
     }
 }
 
-fn make_buf<F>(func: F) -> Vec<u8>
+fn make_buf<T, F>(func: F) -> Vec<T>
 where
-    F: Fn(f32, f32) -> [u8; 4] + Sync,
+    F: Fn(f32, f32) -> Srgb + Sync,
+    T: Default + Copy + Send + FromComponent<f32> + Component,
 {
-    let mut buf = vec![0u8; IMG_SIZE * IMG_SIZE * 4];
+    let mut buf = vec![T::default(); IMG_SIZE * IMG_SIZE * 4];
     buf.par_chunks_exact_mut(IMG_SIZE * 4)
         .enumerate()
         .for_each(|(y, row)| {
@@ -68,8 +70,8 @@ where
             row.chunks_exact_mut(4).enumerate().for_each(|(x, pixel)| {
                 debug_assert!(pixel.len() == 4);
                 let normx = x as f32 / IMG_SIZE as f32;
-                let p = func(normx, normy);
-                pixel.clone_from_slice(&p);
+                let p: Srgb<T> = func(normx, normy).into_format();
+                pixel.clone_from_slice(&[p.red, p.green, p.blue, T::max_intensity()]);
             });
         });
     buf
@@ -83,14 +85,13 @@ fn make_lightness_map(l: f32) -> impl Fn(f32, f32) -> [u8; 4] {
     }
 }
 
-fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32, clip: bool) -> impl Fn(f32, f32) -> [u8; 4] {
+fn make_linear_gradient(l0: f32, ld: f32, a0: f32, ad: f32, b0: f32, bd: f32, clip: bool) -> impl Fn(f32, f32) -> Srgb {
     move |x, _| {
         let l = l0 + x * ld;
         let a = a0 + x * ad;
         let b = b0 + x * bd;
         let lab = palette::Oklab::new(l, a, b);
-        let rgb = if clip { oklab_to_srgb_clipped(&lab) } else { oklab_to_srgb(&lab) }.into_format();
-        [rgb.red, rgb.green, rgb.blue, 0xff]
+        if clip { oklab_to_srgb_clipped(&lab) } else { oklab_to_srgb(&lab) }
     }
 }
 
