@@ -105,9 +105,10 @@ fn make_linear_gradient(
     clip: bool,
 ) -> impl Fn(f32, f32) -> Srgb {
     move |x, _| {
-        let l = l0 + x * ld;
-        let a = a0 + x * ad;
-        let b = b0 + x * bd;
+        let xcenter = x - 0.5;
+        let l = l0 + xcenter * ld;
+        let a = a0 + xcenter * ad;
+        let b = b0 + xcenter * bd;
         let lab = palette::Oklab::new(l, a, b);
         if clip {
             oklab_to_srgb_clipped(&lab)
