@@ -129,7 +129,7 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
     let k_m = -0.1055613458f32 * a - 0.0638541728f32 * b;
     let k_s = -0.0894841775f32 * a - 1.2914855480f32 * b;
 
-    {
+    for _ in 0..2 {
         let l_ = 1. + s * k_l;
         let m_ = 1. + s * k_m;
         let s_ = 1. + s * k_s;
@@ -150,7 +150,7 @@ fn compute_max_saturation(a: f32, b: f32) -> f32 {
         let f1 = wl * l_ds + wm * m_ds + ws * s_ds;
         let f2 = wl * l_ds2 + wm * m_ds2 + ws * s_ds2;
 
-        s = s - f / (f1 * f1 - 0.5f32 * f * f2);
+        s = s - 2. * f * f1 / (2. * f1 * f1 - f * f2);
     }
 
     s
