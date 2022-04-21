@@ -1,10 +1,9 @@
 mod gamut_mapping;
 use eframe::{
     egui::{self, Vec2},
-    epaint::Color32,
     epi,
 };
-use palette::{convert::FromColorUnclamped, Clamp, FromColor, IntoColor, Oklab, Srgb};
+use palette::{convert::FromColorUnclamped, Clamp, Oklab, Srgb};
 use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,

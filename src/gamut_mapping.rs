@@ -190,7 +190,7 @@ fn find_gamut_intersection(a: f32, b: f32, l1: f32, c1: f32, l0: f32) -> f32 {
     let cusp = find_cusp(a, b);
 
     // Find the intersection for upper and lower half seprately
-    let t = if ((l1 - l0) * cusp.c - (cusp.l - l0) * c1) <= 0. {
+    if ((l1 - l0) * cusp.c - (cusp.l - l0) * c1) <= 0. {
         // Lower half
 
         cusp.c * l0 / (c1 * cusp.l + cusp.c * (l0 - l1))
@@ -263,14 +263,12 @@ fn find_gamut_intersection(a: f32, b: f32, l1: f32, c1: f32, l0: f32) -> f32 {
             }
         }
         t
-    };
-
-    t
+    }
 }
 
 /// like f32::signum except for no Nan and returns 0 if x is 0
 fn sgn(x: f32) -> f32 {
-    return ((0. < x) as i8 - (x < 0.) as i8) as f32;
+    ((0. < x) as i8 - (x < 0.) as i8) as f32
 }
 
 pub fn gamut_clip_preserve_chroma(rgb: LinearRGB) -> LinearRGB {
@@ -325,7 +323,7 @@ pub fn gamut_clip_project_to_0_5(rgb: LinearRGB) -> LinearRGB {
     })
 }
 
-pub fn gamut_clip_project_to_L_cusp(rgb: LinearRGB) -> LinearRGB {
+pub fn gamut_clip_project_to_l_cusp(rgb: LinearRGB) -> LinearRGB {
     if rgb.r < 1. && rgb.g < 1. && rgb.b < 1. && rgb.r > 0. && rgb.g > 0. && rgb.b > 0. {
         return rgb;
     }
