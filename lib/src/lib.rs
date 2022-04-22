@@ -1,10 +1,12 @@
 mod gamut_mapping;
+use std::io::Cursor;
+
 use eframe::{
-    egui::{self, Ui, Vec2},
+    egui::{self, Ui},
     epi,
 };
 use glam::{vec3, Vec3};
-use native_dialog::{FileDialog, MessageDialog, MessageType};
+use image::ImageOutputFormat;
 use palette::{convert::FromColorUnclamped, Clamp, Component, FromComponent, Oklab, Srgb};
 use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
@@ -152,27 +154,33 @@ fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egu
     )
 }
 
-fn save_image_from_params<P: AsRef<std::path::Path>>(params: &Params, path: P) {
+fn save_image_from_params(params: &Params) {
     let buf = make_buf(make_2d_gradient(
         params.center,
         params.x_slope,
         params.y_slope,
         params.extend,
     ));
+    let mut writer = Cursor::new(vec![]);
     if let Err(e) = image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_vec(
         IMG_SIZE as u32,
         IMG_SIZE as u32,
         buf,
     )
-    .unwrap()
-    .save(path)
+        .unwrap()
+        .write_to(&mut writer, ImageOutputFormat::Png)
     {
-        MessageDialog::new()
-            .set_type(MessageType::Error)
-            .set_title("Error saving image")
-            .set_text(&e.to_string())
-            .show_alert()
-            .unwrap();
+        // TODO make this work on the web as well
+        cfg_if::cfg_if! {
+            if #[cfg(not(target_arch = "wasm32"))] {
+                MessageDialog::new()
+                    .set_type(MessageType::Error)
+                    .set_title("Error saving image")
+                    .set_text(&e.to_string())
+                    .show_alert()
+                    .unwrap();
+            }
+        }
     }
 }
 
@@ -233,12 +241,7 @@ impl epi::App for Gui {
                     let texture = &self.texture.as_ref().unwrap().1;
                     ui.image(texture, texture.size_vec2());
                     if ui.add(egui::Button::new("save")).clicked() {
-                        if let Ok(Some(path)) = FileDialog::new()
-                            .add_filter("PNG Image", &["png"])
-                            .show_save_single_file()
-                        {
-                            save_image_from_params(&newparams, path);
-                        }
+                        save_image_from_params(&newparams);
                     }
                 });
             });
