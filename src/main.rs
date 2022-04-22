@@ -36,7 +36,6 @@ struct Params {
     center: Oklab,
     // TODO change the ab parts to rotation,scale?
     x_slope: Oklab,
-    y_offset: Oklab,
     y_slope: Oklab,
     extend: bool,
 }
@@ -46,7 +45,6 @@ impl Default for Params {
         Self {
             center: NEUTRAL_LAB,
             x_slope: Oklab::default(),
-            y_offset: NEUTRAL_LAB,
             y_slope: Oklab::default(),
             extend: true,
         }
@@ -122,7 +120,6 @@ fn make_linear_gradient(center: Oklab, x_slope: Oklab, clip: bool) -> impl Fn(f3
 fn make_2d_gradient(
     center: Oklab,
     x_slope: Oklab,
-    y_offset: Oklab,
     y_slope: Oklab,
     clip: bool,
 ) -> impl Fn(f32, f32) -> Srgb {
@@ -130,8 +127,8 @@ fn make_2d_gradient(
         let xcenter = x - 0.5;
         let ycenter = y - 0.5;
         let lab = vec3_to_oklab(
-            oklab_to_vec3(center) + xcenter * oklab_to_vec3(x_slope) + oklab_to_vec3(y_offset)
-                - vec3(0.5, 0., 0.)
+            oklab_to_vec3(center)
+                + xcenter * oklab_to_vec3(x_slope)
                 + ycenter * oklab_to_vec3(y_slope),
         );
         if clip {
@@ -146,7 +143,6 @@ fn make_texture_from_params(ctx: &eframe::egui::Context, params: &Params) -> egu
     let buf = make_buf(make_2d_gradient(
         params.center,
         params.x_slope,
-        params.y_offset,
         params.y_slope,
         params.extend,
     ));
@@ -160,7 +156,6 @@ fn save_image_from_params<P: AsRef<std::path::Path>>(params: &Params, path: P) {
     let buf = make_buf(make_2d_gradient(
         params.center,
         params.x_slope,
-        params.y_offset,
         params.y_slope,
         params.extend,
     ));
@@ -191,16 +186,20 @@ impl Gui {
     }
 }
 
-fn lab_slope_gui(ui: &mut Ui, center: &mut Oklab, slope: &mut Oklab) {
+fn lab_slope_gui(ui: &mut Ui, center: &mut Oklab, x_slope: &mut Oklab, y_slope: &mut Oklab) {
     ui.add(egui::Slider::new(&mut center.l, Oklab::min_l()..=Oklab::max_l()).text("L center"));
-    ui.add(egui::Slider::new(&mut slope.l, -1f32..=1.).text("L slope"));
     ui.add(egui::Slider::new(&mut center.a, Oklab::min_a()..=Oklab::max_a()).text("a center"));
-    ui.add(egui::Slider::new(&mut slope.a, -1f32..=1.).text("a slope"));
     ui.add(egui::Slider::new(&mut center.b, Oklab::min_b()..=Oklab::max_b()).text("b center"));
-    ui.add(egui::Slider::new(&mut slope.b, -1f32..=1.).text("b slope"));
+    ui.add(egui::Slider::new(&mut x_slope.l, -1f32..=1.).text("L x slope"));
+    ui.add(egui::Slider::new(&mut x_slope.b, -1f32..=1.).text("b x slope"));
+    ui.add(egui::Slider::new(&mut x_slope.a, -1f32..=1.).text("a x slope"));
+    ui.add(egui::Slider::new(&mut y_slope.l, -1f32..=1.).text("L y slope"));
+    ui.add(egui::Slider::new(&mut y_slope.b, -1f32..=1.).text("b y slope"));
+    ui.add(egui::Slider::new(&mut y_slope.a, -1f32..=1.).text("a y slope"));
     if ui.add(egui::Button::new("reset")).clicked() {
         *center = NEUTRAL_LAB;
-        *slope = Oklab::new(0., 0., 0.);
+        *x_slope = Oklab::new(0., 0., 0.);
+        *y_slope = Oklab::new(0., 0., 0.);
     }
 }
 
@@ -215,14 +214,12 @@ impl epi::App for Gui {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.set_min_width(250.);
-                    ui.group(|ui| {
-                        ui.label("x");
-                        lab_slope_gui(ui, &mut newparams.center, &mut newparams.x_slope);
-                    });
-                    ui.group(|ui| {
-                        ui.label("y");
-                        lab_slope_gui(ui, &mut newparams.y_offset, &mut newparams.y_slope);
-                    });
+                    lab_slope_gui(
+                        ui,
+                        &mut newparams.center,
+                        &mut newparams.x_slope,
+                        &mut newparams.y_slope,
+                    );
                     ui.checkbox(&mut newparams.extend, "extend");
                 });
                 ui.vertical(|ui| {
