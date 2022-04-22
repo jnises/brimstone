@@ -1,5 +1,6 @@
 [package]
-name = "brimstone"
+authors = ["joel nises <joel.nises@gmail.com>"]
+name = "lib"
 version = "0.1.0"
 edition = "2021"
 

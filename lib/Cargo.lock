@@ -211,20 +211,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
-name = "brimstone"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "eframe",
- "env_logger",
- "glam",
- "image",
- "native-dialog",
- "palette",
- "rayon",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1272,6 +1258,20 @@ name = "lebe"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7efd1d698db0759e6ef11a7cd44407407399a910c774dd804c64c032da7826ff"
+
+[[package]]
+name = "lib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "eframe",
+ "env_logger",
+ "glam",
+ "image",
+ "native-dialog",
+ "palette",
+ "rayon",
+]
 
 [[package]]
 name = "libc"

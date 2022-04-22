@@ -1,4 +1,4 @@
-dmod gamut_mapping;
+mod gamut_mapping;
 use eframe::{
     egui::{self, Ui, Vec2},
     epi,
@@ -176,12 +176,12 @@ fn save_image_from_params<P: AsRef<std::path::Path>>(params: &Params, path: P) {
     }
 }
 
-struct Gui {
+pub struct Gui {
     texture: Option<(Params, egui::TextureHandle)>,
 }
 
 impl Gui {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { texture: None }
     }
 }
@@ -199,7 +199,7 @@ fn lab_slope_gui(ui: &mut Ui, center: &mut Oklab, x_slope: &mut Oklab, y_slope: 
     if ui.add(egui::Button::new("reset")).clicked() {
         *center = NEUTRAL_LAB;
         *x_slope = Oklab::new(0., 0., 0.);
- l        *y_slope = Oklab::new(0., 0., 0.);
+        *y_slope = Oklab::new(0., 0., 0.);
     }
 }
 
@@ -248,19 +248,4 @@ impl epi::App for Gui {
     fn name(&self) -> &str {
         "Brimstone"
     }
-}
-
-fn main() {
-    env_logger::init();
-    let app = Box::new(Gui::new());
-    eframe::run_native(
-        app,
-        epi::NativeOptions {
-            initial_window_size: Some(Vec2 {
-                x: 800f32,
-                y: 600f32,
-            }),
-            ..Default::default()
-        },
-    );
 }
