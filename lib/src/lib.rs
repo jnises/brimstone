@@ -12,6 +12,7 @@ use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,
 };
+use native_dialog::{MessageDialog, MessageType};
 
 const IMG_SIZE: usize = 512;
 
