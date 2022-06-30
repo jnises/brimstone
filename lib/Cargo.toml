@@ -5,11 +5,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-eframe = "0.17.0"
+eframe = "0.18.0"
 env_logger = "0.9"
 anyhow = "1.0"
 palette = "0.6.0"
 rayon = "1.5.2"
 image = "0.24.1"
 native-dialog = { version="0.6.3", features = ["windows_dpi_awareness", "windows_visual_styles"] }
-glam = "0.20.5"
+glam = "0.21"

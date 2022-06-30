@@ -1,7 +1,7 @@
 mod gamut_mapping;
 use eframe::{
-    egui::{self, Ui, Vec2},
-    epi,
+    egui::{self, Ui},
+    App,
 };
 use glam::{vec3, Vec3};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -203,8 +203,8 @@ fn lab_slope_gui(ui: &mut Ui, center: &mut Oklab, x_slope: &mut Oklab, y_slope: 
     }
 }
 
-impl epi::App for Gui {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &epi::Frame) {
+impl App for Gui {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         let mut newparams = if let Some((params, _)) = &self.texture {
             params.clone()
         } else {
@@ -243,9 +243,5 @@ impl epi::App for Gui {
                 });
             });
         });
-    }
-
-    fn name(&self) -> &str {
-        "Brimstone"
     }
 }
