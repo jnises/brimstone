@@ -78,8 +78,8 @@ pub struct Gui {
     texture: Option<egui::TextureHandle>,
 }
 
-impl Gui {
-    pub fn new() -> Self {
+impl Default for Gui {
+    fn default() -> Self {
         let dtype = DesignerType::Linear;
         let designer = dtype.make();
         Self {

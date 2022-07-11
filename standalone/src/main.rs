@@ -12,6 +12,6 @@ fn main() {
             }),
             ..Default::default()
         },
-        Box::new(|_ctx| Box::new(Gui::new()))
+        Box::new(|_ctx| Box::new(Gui::default()))
     );
 }
