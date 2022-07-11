@@ -46,7 +46,7 @@ fn make_texture_from_params(
 }
 
 fn save_image_from_params<P: AsRef<std::path::Path>>(designer: &dyn Designer, path: P) {
-    let mut buf = vec![Srgb::default(); IMG_SIZE * IMG_SIZE * 4];
+    let mut buf = vec![Srgb::default(); IMG_SIZE * IMG_SIZE];
     designer.render((IMG_SIZE, IMG_SIZE), &mut buf);
     let u16buf: Vec<u16> = buf
         .iter()
