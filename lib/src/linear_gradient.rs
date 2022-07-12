@@ -1,51 +1,6 @@
-use crate::{designer, gamut_mapping, utils::render_par};
+use crate::{designer, utils::{render_par, NEUTRAL_LAB, vec3_to_oklab, oklab_to_vec3, oklab_to_srgb_clipped, oklab_to_srgb}};
 use eframe::egui;
-use glam::{vec3, Vec3};
-use palette::{convert::FromColorUnclamped, Clamp, Oklab, Srgb};
-
-fn vec3_to_oklab(vec: Vec3) -> Oklab {
-    Oklab::new(vec.x, vec.y, vec.z)
-}
-
-fn oklab_to_vec3(lab: Oklab) -> Vec3 {
-    vec3(lab.l, lab.a, lab.b)
-}
-
-const NEUTRAL_LAB: Oklab = Oklab {
-    l: 0.5,
-    a: 0.,
-    b: 0.,
-    // TODO use these once they are const
-    // l: (Oklab::<f32>::max_l() + Oklab::<f32>::min_l()) / 2.,
-    // a: (Oklab::<f32>::max_a() + Oklab::<f32>::min_a()) / 2.,
-    // b: (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.,
-};
-
-fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
-    let linear = gamut_mapping::oklab_to_linear_srgb(gamut_mapping::OKLab {
-        l: lab.l,
-        a: lab.a,
-        b: lab.b,
-    });
-    // TODO make these selectable in gui
-    //let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5_alpha(linear, 0.);
-    let mapped = gamut_mapping::gamut_clip_adaptive_l0_0_5(linear);
-    //let mapped = gamut_mapping::gamut_clip_adaptive_L0_L_cusp(linear);
-    //let mapped = gamut_mapping::gamut_clip_preserve_chroma(linear);
-    //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
-    //let mapped = gamut_mapping::gamut_clip_project_to_0_5(linear);
-    //let mapped = gamut_mapping::gamut_clip_project_to_l_cusp(linear);
-    Srgb::from_linear(palette::LinSrgb::new(mapped.r, mapped.g, mapped.b))
-}
-
-fn oklab_to_srgb(lab: &palette::Oklab) -> Srgb<f32> {
-    let rgb_unclamped = Srgb::from_color_unclamped(*lab);
-    if rgb_unclamped.is_within_bounds() {
-        rgb_unclamped.clamp()
-    } else {
-        Srgb::new(0f32, 0f32, 0f32)
-    }
-}
+use palette::{Oklab, Srgb};
 
 #[derive(PartialEq, Clone)]
 pub struct Gradient {
