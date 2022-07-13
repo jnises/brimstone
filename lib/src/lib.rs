@@ -1,6 +1,7 @@
 mod designer;
 mod gamut_mapping;
 mod linear_gradient;
+mod spiral_gradient;
 mod utils;
 use crate::designer::Designer;
 use eframe::{egui, App};
@@ -13,14 +14,16 @@ const IMG_SIZE: usize = 512;
 
 #[derive(EnumIter, Debug, PartialEq, Default, Copy, Clone)]
 enum DesignerType {
-    #[default]
     Linear,
+    #[default]
+    Spiral,
 }
 
 impl DesignerType {
     fn make(&self) -> Box<dyn Designer> {
         match self {
             DesignerType::Linear => Box::new(linear_gradient::Gradient::new()),
+            DesignerType::Spiral => Box::new(spiral_gradient::Gradient::new()),
         }
     }
 }
@@ -80,7 +83,7 @@ pub struct Gui {
 
 impl Default for Gui {
     fn default() -> Self {
-        let dtype = DesignerType::Linear;
+        let dtype = DesignerType::default();
         let designer = dtype.make();
         Self {
             current_designer: (dtype, designer),
@@ -104,6 +107,7 @@ impl App for Gui {
                             if selected_designer != self.current_designer.0 {
                                 let new_designer = selected_designer.make();
                                 self.current_designer = (selected_designer, new_designer);
+                                self.texture = None;
                             }
                         });
                     ui.separator();

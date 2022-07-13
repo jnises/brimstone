@@ -1,5 +1,8 @@
-use glam::{Vec3, vec3};
-use palette::{Srgb, FromComponent, Component, convert::FromColorUnclamped, Clamp, Oklab};
+use std::ops::RangeInclusive;
+
+use eframe::egui::{self, Ui};
+use glam::{vec3, Vec3};
+use palette::{convert::FromColorUnclamped, Clamp, Component, FromComponent, Oklab, Srgb};
 use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,
@@ -67,4 +70,23 @@ pub fn oklab_to_srgb(lab: &palette::Oklab) -> Srgb<f32> {
     } else {
         Srgb::new(0f32, 0f32, 0f32)
     }
+}
+
+pub fn resettable_slider(
+    ui: &mut Ui,
+    value: &mut f32,
+    text: &str,
+    range: RangeInclusive<f32>,
+    default_value: f32,
+) {
+    debug_assert!(range.contains(&default_value));
+    ui.horizontal(|ui| {
+        ui.add(egui::Slider::new(value, range).text(text));
+        if ui
+            .add_enabled(*value != default_value, egui::Button::new("⟲"))
+            .clicked()
+        {
+            *value = default_value;
+        }
+    });
 }
