@@ -14,6 +14,7 @@ pub struct Gradient {
     center: Oklab,
     rotation: f32,
     saturation: f32,
+    saturation_midtone: f32,
     extend: bool,
 }
 
@@ -21,11 +22,13 @@ impl Gradient {
     const CENTER_DEFAULT: Oklab = NEUTRAL_LAB;
     const ROTATION_DEFAULT: f32 = 1.;
     const SATURATION_DEFAULT: f32 = 0.5;
+    const SATURATION_MIDTONE_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
             center: Self::CENTER_DEFAULT,
             rotation: Self::ROTATION_DEFAULT,
             saturation: Self::SATURATION_DEFAULT,
+            saturation_midtone: Self::SATURATION_MIDTONE_DEFAULT,
             extend: true,
         }
     }
@@ -38,6 +41,7 @@ impl designer::Designer for Gradient {
             center,
             rotation,
             saturation,
+            saturation_midtone,
             extend,
         } = &mut c;
         ui.vertical(|ui| {
@@ -70,6 +74,13 @@ impl designer::Designer for Gradient {
                 0. ..=1.,
                 Self::SATURATION_DEFAULT,
             );
+            resettable_slider(
+                ui,
+                saturation_midtone,
+                "saturation midtone",
+                0. ..=1.,
+                Self::SATURATION_MIDTONE_DEFAULT,
+            );
             ui.checkbox(extend, "extend");
         });
         if c != *self {
@@ -85,9 +96,12 @@ impl designer::Designer for Gradient {
             let xcenter = x - 0.5;
             let ycenter = y - 0.5;
             let rot = Vec2::from_angle(xcenter * self.rotation * std::f32::consts::PI * 2.);
+            let chroma = vec3(0., rot.x, rot.y);
+            let midtone = (ycenter.abs() * 2.).sqrt();
+            let saturation = (self.saturation * (1. - self.saturation_midtone * midtone)).max(0.);
             let lab = vec3_to_oklab(
                 oklab_to_vec3(self.center)
-                    + self.saturation * vec3(0., rot.x, rot.y)
+                    + saturation * chroma
                     + ycenter * vec3(-1., 0., 0.),
             );
             if self.extend {
