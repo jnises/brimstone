@@ -5,7 +5,7 @@ use crate::{
         vec3_to_oklab, NEUTRAL_LAB,
     },
 };
-use glam::{vec3, Vec2};
+use glam::{vec2, vec3, Vec2};
 use palette::{Oklab, Srgb};
 use std::f32::consts::PI;
 
@@ -15,15 +15,15 @@ pub struct Gradient {
     rotation: f32,
     phase: f32,
     saturation: f32,
-    saturation_midtone: f32,
+    saturation_non_midtone: f32,
     extend: bool,
 }
 
 impl Gradient {
     const CENTER_DEFAULT: Oklab = NEUTRAL_LAB;
-    const ROTATION_DEFAULT: f32 = 2. * std::f32::consts::PI;
+    const ROTATION_DEFAULT: f32 = 2. * PI;
     const SATURATION_DEFAULT: f32 = 0.5;
-    const SATURATION_MIDTONE_DEFAULT: f32 = 0.5;
+    const SATURATION_NON_MIDTONE_DEFAULT: f32 = 0.;
     const PHASE_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
@@ -31,7 +31,7 @@ impl Gradient {
             rotation: Self::ROTATION_DEFAULT,
             phase: Self::PHASE_DEFAULT,
             saturation: Self::SATURATION_DEFAULT,
-            saturation_midtone: Self::SATURATION_MIDTONE_DEFAULT,
+            saturation_non_midtone: Self::SATURATION_NON_MIDTONE_DEFAULT,
             extend: true,
         }
     }
@@ -45,7 +45,7 @@ impl designer::Designer for Gradient {
             rotation,
             phase,
             saturation,
-            saturation_midtone,
+            saturation_non_midtone,
             extend,
         } = &mut c;
         ui.vertical(|ui| {
@@ -74,16 +74,10 @@ impl designer::Designer for Gradient {
                 ui,
                 rotation,
                 "rotation",
-                0. ..= PI * 2.,
+                0. ..=PI * 2.,
                 Self::ROTATION_DEFAULT,
             );
-            resettable_slider(
-                ui,
-                phase,
-                "phase",
-                -PI ..= PI,
-                Self::PHASE_DEFAULT,
-            );
+            resettable_slider(ui, phase, "phase", -PI..=PI, Self::PHASE_DEFAULT);
             resettable_slider(
                 ui,
                 saturation,
@@ -93,10 +87,10 @@ impl designer::Designer for Gradient {
             );
             resettable_slider(
                 ui,
-                saturation_midtone,
-                "saturation midtone",
+                saturation_non_midtone,
+                "saturation !midtone",
                 0. ..=1.,
-                Self::SATURATION_MIDTONE_DEFAULT,
+                Self::SATURATION_NON_MIDTONE_DEFAULT,
             );
             ui.checkbox(extend, "extend");
         });
@@ -112,13 +106,15 @@ impl designer::Designer for Gradient {
         render_par(size, buf, |x, y| {
             let xcenter = 2. * (x - 0.5);
             let ycenter = 2. * (y - 0.5);
+            let lightness = self.center.l - ycenter * 0.5;
             let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase);
-            let chroma = vec3(0., rot.x, rot.y);
-            let midtone = (ycenter.abs()).powi(2);
-            let saturation = (self.saturation * (1. - self.saturation_midtone * midtone)).max(0.);
-            let lab = vec3_to_oklab(
-                oklab_to_vec3(self.center) + saturation * chroma + ycenter * vec3(-0.5, 0., 0.),
-            );
+            let chroma = vec2(rot.x, rot.y) + vec2(self.center.a, self.center.b);
+            let midtone_mask = ((lightness - NEUTRAL_LAB.l).abs() * 2.).powi(2);
+            let saturation = (self.saturation
+                * (1. - (1. - self.saturation_non_midtone) * midtone_mask))
+                .max(0.);
+            let chroma2 = chroma * saturation;
+            let lab = Oklab::new(lightness, chroma2.x, chroma2.y);
             if self.extend {
                 oklab_to_srgb_clipped(&lab)
             } else {

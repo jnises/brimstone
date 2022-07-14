@@ -1,7 +1,7 @@
 mod designer;
 mod gamut_mapping;
-mod linear_gradient;
 mod hue_gradient;
+mod linear_gradient;
 mod utils;
 use crate::designer::Designer;
 use eframe::{egui, App};
