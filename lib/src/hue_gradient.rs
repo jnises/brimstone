@@ -68,14 +68,14 @@ impl designer::Designer for Gradient {
                 ui,
                 &mut center.a,
                 "a center",
-                Oklab::min_a()..=Oklab::max_b(),
+                Oklab::<f32>::min_a() * 2. ..= Oklab::<f32>::max_b() * 2.,
                 Self::CENTER_DEFAULT.a,
             );
             resettable_slider(
                 ui,
                 &mut center.b,
                 "b center",
-                Oklab::min_b()..=Oklab::max_b(),
+                Oklab::<f32>::min_b() * 2. ..= Oklab::<f32>::max_b() * 2.,
                 Self::CENTER_DEFAULT.b,
             );
             resettable_slider(
@@ -119,13 +119,12 @@ impl designer::Designer for Gradient {
             let lightness = self.center.l - ycenter * 0.5;
             let twist = self.twist + y * self.twist_v;
             let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase + ycenter * twist);
-            let chroma = vec2(rot.x, rot.y) + vec2(self.center.a, self.center.b);
             let midtone_mask = ((lightness - NEUTRAL_LAB.l).abs() * 2.).powi(2);
             let saturation = (self.saturation
                 * (1. - (1. - self.saturation_non_midtone) * midtone_mask))
                 .max(0.);
-            let chroma2 = chroma * saturation;
-            let lab = Oklab::new(lightness, chroma2.x, chroma2.y);
+            let chroma = vec2(rot.x, rot.y) * saturation + vec2(self.center.a, self.center.b);
+            let lab = Oklab::new(lightness, chroma.x, chroma.y);
             if self.extend {
                 oklab_to_srgb_clipped(&lab)
             } else {
