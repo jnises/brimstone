@@ -8,7 +8,7 @@ use rayon::{
     slice::ParallelSliceMut,
 };
 
-use crate::gamut_mapping;
+use crate::gamut_mapping::{self};
 
 pub fn render_par<F, T>(size: (usize, usize), buf: &mut [Srgb<T>], func: F)
 where
@@ -46,7 +46,7 @@ pub const NEUTRAL_LAB: Oklab = Oklab {
     // b: (Oklab::<f32>::max_b() + Oklab::<f32>::min_b()) / 2.,
 };
 
-pub fn oklab_to_srgb_clipped(lab: &palette::Oklab) -> Srgb<f32> {
+pub fn oklab_to_srgb_clipped(lab: palette::Oklab) -> Srgb<f32> {
     let linear = gamut_mapping::oklab_to_linear_srgb(gamut_mapping::OKLab {
         l: lab.l,
         a: lab.a,

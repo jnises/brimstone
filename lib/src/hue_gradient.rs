@@ -1,12 +1,16 @@
 use crate::{
     designer,
     utils::{
-        oklab_to_srgb, oklab_to_srgb_clipped, render_par, resettable_slider,
-        NEUTRAL_LAB,
+        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
+        vec3_to_oklab, NEUTRAL_LAB,
     },
 };
-use glam::{vec2, Vec2};
-use palette::{Oklab, Srgb};
+use glam::{vec2, Vec2, Vec3};
+use palette::{convert::FromColorUnclamped, Oklab, Srgb};
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator},
+    slice::ParallelSliceMut,
+};
 use std::f32::consts::PI;
 
 #[derive(PartialEq, Clone)]
@@ -19,6 +23,7 @@ pub struct Gradient {
     twist: f32,
     twist_v: f32,
     extend: bool,
+    relax: bool,
 }
 
 impl Gradient {
@@ -39,6 +44,7 @@ impl Gradient {
             twist: Self::TWIST_DEFAULT,
             twist_v: Self::TWIST_V_DEFAULT,
             extend: true,
+            relax: false,
         }
     }
 }
@@ -55,6 +61,7 @@ impl designer::Designer for Gradient {
             twist,
             twist_v,
             extend,
+            relax,
         } = &mut c;
         ui.vertical(|ui| {
             resettable_slider(
@@ -68,14 +75,14 @@ impl designer::Designer for Gradient {
                 ui,
                 &mut center.a,
                 "a center",
-                Oklab::<f32>::min_a() * 2. ..= Oklab::<f32>::max_b() * 2.,
+                Oklab::<f32>::min_a() * 2.0..=Oklab::<f32>::max_b() * 2.,
                 Self::CENTER_DEFAULT.a,
             );
             resettable_slider(
                 ui,
                 &mut center.b,
                 "b center",
-                Oklab::<f32>::min_b() * 2. ..= Oklab::<f32>::max_b() * 2.,
+                Oklab::<f32>::min_b() * 2.0..=Oklab::<f32>::max_b() * 2.,
                 Self::CENTER_DEFAULT.b,
             );
             resettable_slider(
@@ -86,8 +93,14 @@ impl designer::Designer for Gradient {
                 Self::ROTATION_DEFAULT,
             );
             resettable_slider(ui, phase, "phase", -PI..=PI, Self::PHASE_DEFAULT);
-            resettable_slider(ui, twist, "twist", -PI * 5. ..= PI * 5., Self::TWIST_DEFAULT);
-            resettable_slider(ui, twist_v, "twist v", -PI * 5. ..= PI * 5., Self::TWIST_DEFAULT);
+            resettable_slider(ui, twist, "twist", -PI * 5.0..=PI * 5., Self::TWIST_DEFAULT);
+            resettable_slider(
+                ui,
+                twist_v,
+                "twist v",
+                -PI * 5.0..=PI * 5.,
+                Self::TWIST_DEFAULT,
+            );
             resettable_slider(
                 ui,
                 saturation,
@@ -103,6 +116,7 @@ impl designer::Designer for Gradient {
                 Self::SATURATION_NON_MIDTONE_DEFAULT,
             );
             ui.checkbox(extend, "extend");
+            ui.checkbox(relax, "relax");
         });
         if c != *self {
             *self = c;
@@ -118,7 +132,8 @@ impl designer::Designer for Gradient {
             let ycenter = 2. * (y - 0.5);
             let lightness = self.center.l - ycenter * 0.5;
             let twist = self.twist + y * self.twist_v;
-            let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase + ycenter * twist);
+            let rot =
+                Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase + ycenter * twist);
             let midtone_mask = ((lightness - NEUTRAL_LAB.l).abs() * 2.).powi(2);
             let saturation = (self.saturation
                 * (1. - (1. - self.saturation_non_midtone) * midtone_mask))
@@ -126,10 +141,45 @@ impl designer::Designer for Gradient {
             let chroma = vec2(rot.x, rot.y) * saturation + vec2(self.center.a, self.center.b);
             let lab = Oklab::new(lightness, chroma.x, chroma.y);
             if self.extend {
-                oklab_to_srgb_clipped(&lab)
+                oklab_to_srgb_clipped(lab)
             } else {
                 oklab_to_srgb(&lab)
             }
         });
+        if self.relax {
+            const STEP: f32 = 0.2;
+            for _ in 0..100 {
+                let labbuf: Vec<_> = buf
+                    .par_iter()
+                    .map(|c| oklab_to_vec3(palette::Oklab::from_color_unclamped(c.into_linear())))
+                    .collect();
+                // TODO separable?
+                // TODO gaussian?
+                buf.par_chunks_exact_mut(size.0)
+                    .enumerate()
+                    .for_each(|(y, row)| {
+                        for x in 0..size.0 {
+                            let idx = y * size.0 + x;
+                            let lab = labbuf[idx];
+                            let xforce = match x {
+                                i if i == (size.0 - 1) || i == 0 => Vec3::ZERO,
+                                _ => {
+                                    let offset = labbuf[idx + 1] + labbuf[idx - 1] - lab * 2.;
+                                    offset * STEP
+                                }
+                            };
+                            let yforce = match y {
+                                i if i == (size.1 - 1) || i == 0 => Vec3::ZERO,
+                                _ => {
+                                    let offset =
+                                        labbuf[idx + size.0] + labbuf[idx - size.0] - lab * 2.;
+                                    offset * STEP
+                                }
+                            };
+                            row[x] = oklab_to_srgb_clipped(vec3_to_oklab(lab + xforce + yforce));
+                        }
+                    });
+            }
+        }
     }
 }

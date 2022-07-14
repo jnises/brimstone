@@ -1,4 +1,9 @@
-use crate::{designer, utils::{render_par, NEUTRAL_LAB, vec3_to_oklab, oklab_to_vec3, oklab_to_srgb_clipped, oklab_to_srgb}};
+use crate::{
+    designer,
+    utils::{
+        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, vec3_to_oklab, NEUTRAL_LAB,
+    },
+};
 use eframe::egui;
 use palette::{Oklab, Srgb};
 
@@ -71,7 +76,7 @@ impl designer::Designer for Gradient {
                     + ycenter * oklab_to_vec3(self.y_slope),
             );
             if self.extend {
-                oklab_to_srgb_clipped(&lab)
+                oklab_to_srgb_clipped(lab)
             } else {
                 oklab_to_srgb(&lab)
             }
