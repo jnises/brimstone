@@ -13,6 +13,7 @@ use palette::{float::Float, Oklab, Srgb};
 pub struct Gradient {
     center: Oklab,
     rotation: f32,
+    phase: f32,
     saturation: f32,
     saturation_midtone: f32,
     extend: bool,
@@ -20,13 +21,15 @@ pub struct Gradient {
 
 impl Gradient {
     const CENTER_DEFAULT: Oklab = NEUTRAL_LAB;
-    const ROTATION_DEFAULT: f32 = 1.;
+    const ROTATION_DEFAULT: f32 = std::f32::consts::PI;
     const SATURATION_DEFAULT: f32 = 0.5;
     const SATURATION_MIDTONE_DEFAULT: f32 = 0.;
+    const PHASE_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
             center: Self::CENTER_DEFAULT,
             rotation: Self::ROTATION_DEFAULT,
+            phase: Self::PHASE_DEFAULT,
             saturation: Self::SATURATION_DEFAULT,
             saturation_midtone: Self::SATURATION_MIDTONE_DEFAULT,
             extend: true,
@@ -40,6 +43,7 @@ impl designer::Designer for Gradient {
         let Gradient {
             center,
             rotation,
+            phase,
             saturation,
             saturation_midtone,
             extend,
@@ -66,7 +70,20 @@ impl designer::Designer for Gradient {
                 Oklab::min_b()..=Oklab::max_b(),
                 Self::CENTER_DEFAULT.b,
             );
-            resettable_slider(ui, rotation, "rotation", 0. ..=1., Self::ROTATION_DEFAULT);
+            resettable_slider(
+                ui,
+                rotation,
+                "rotation",
+                0. ..=std::f32::consts::PI,
+                Self::ROTATION_DEFAULT,
+            );
+            resettable_slider(
+                ui,
+                phase,
+                "phase",
+                0. ..=std::f32::consts::PI,
+                Self::PHASE_DEFAULT,
+            );
             resettable_slider(
                 ui,
                 saturation,
@@ -93,16 +110,14 @@ impl designer::Designer for Gradient {
 
     fn render(&self, size: (usize, usize), buf: &mut [Srgb]) {
         render_par(size, buf, |x, y| {
-            let xcenter = x - 0.5;
-            let ycenter = y - 0.5;
-            let rot = Vec2::from_angle(xcenter * self.rotation * std::f32::consts::PI * 2.);
+            let xcenter = 2. * (x - 0.5);
+            let ycenter = 2. * (y - 0.5);
+            let rot = Vec2::from_angle(xcenter * self.rotation + self.phase);
             let chroma = vec3(0., rot.x, rot.y);
-            let midtone = (ycenter.abs() * 2.).sqrt();
+            let midtone = (ycenter.abs()).powi(2);
             let saturation = (self.saturation * (1. - self.saturation_midtone * midtone)).max(0.);
             let lab = vec3_to_oklab(
-                oklab_to_vec3(self.center)
-                    + saturation * chroma
-                    + ycenter * vec3(-1., 0., 0.),
+                oklab_to_vec3(self.center) + saturation * chroma + ycenter * vec3(-0.5, 0., 0.),
             );
             if self.extend {
                 oklab_to_srgb_clipped(&lab)
