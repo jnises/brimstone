@@ -164,6 +164,7 @@ impl designer::Designer for Gradient {
                             let xforce = match x {
                                 i if i == (size.0 - 1) || i == 0 => Vec3::ZERO,
                                 _ => {
+                                    // TODO why the subtraction? why not just a gaussian kernel or something?
                                     let offset = labbuf[idx + 1] + labbuf[idx - 1] - lab * 2.;
                                     offset * STEP
                                 }
