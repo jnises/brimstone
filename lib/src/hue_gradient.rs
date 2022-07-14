@@ -1,11 +1,11 @@
 use crate::{
     designer,
     utils::{
-        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
-        vec3_to_oklab, NEUTRAL_LAB,
+        oklab_to_srgb, oklab_to_srgb_clipped, render_par, resettable_slider,
+        NEUTRAL_LAB,
     },
 };
-use glam::{vec2, vec3, Vec2};
+use glam::{vec2, Vec2};
 use palette::{Oklab, Srgb};
 use std::f32::consts::PI;
 
@@ -17,6 +17,7 @@ pub struct Gradient {
     saturation: f32,
     saturation_non_midtone: f32,
     twist: f32,
+    twist_v: f32,
     extend: bool,
 }
 
@@ -27,6 +28,7 @@ impl Gradient {
     const SATURATION_NON_MIDTONE_DEFAULT: f32 = 0.;
     const PHASE_DEFAULT: f32 = 0.;
     const TWIST_DEFAULT: f32 = 0.;
+    const TWIST_V_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
             center: Self::CENTER_DEFAULT,
@@ -35,6 +37,7 @@ impl Gradient {
             saturation: Self::SATURATION_DEFAULT,
             saturation_non_midtone: Self::SATURATION_NON_MIDTONE_DEFAULT,
             twist: Self::TWIST_DEFAULT,
+            twist_v: Self::TWIST_V_DEFAULT,
             extend: true,
         }
     }
@@ -50,6 +53,7 @@ impl designer::Designer for Gradient {
             saturation,
             saturation_non_midtone,
             twist,
+            twist_v,
             extend,
         } = &mut c;
         ui.vertical(|ui| {
@@ -82,7 +86,8 @@ impl designer::Designer for Gradient {
                 Self::ROTATION_DEFAULT,
             );
             resettable_slider(ui, phase, "phase", -PI..=PI, Self::PHASE_DEFAULT);
-            resettable_slider(ui, twist, "twist", -PI * 5. ..= PI * 5., Self::PHASE_DEFAULT);
+            resettable_slider(ui, twist, "twist", -PI * 5. ..= PI * 5., Self::TWIST_DEFAULT);
+            resettable_slider(ui, twist_v, "twist v", -PI * 5. ..= PI * 5., Self::TWIST_DEFAULT);
             resettable_slider(
                 ui,
                 saturation,
@@ -112,7 +117,8 @@ impl designer::Designer for Gradient {
             let xcenter = 2. * (x - 0.5);
             let ycenter = 2. * (y - 0.5);
             let lightness = self.center.l - ycenter * 0.5;
-            let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase + ycenter * self.twist);
+            let twist = self.twist + y * self.twist_v;
+            let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase + ycenter * twist);
             let chroma = vec2(rot.x, rot.y) + vec2(self.center.a, self.center.b);
             let midtone_mask = ((lightness - NEUTRAL_LAB.l).abs() * 2.).powi(2);
             let saturation = (self.saturation
