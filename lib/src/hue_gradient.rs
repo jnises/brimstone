@@ -16,6 +16,7 @@ pub struct Gradient {
     phase: f32,
     saturation: f32,
     saturation_non_midtone: f32,
+    twist: f32,
     extend: bool,
 }
 
@@ -25,6 +26,7 @@ impl Gradient {
     const SATURATION_DEFAULT: f32 = 0.5;
     const SATURATION_NON_MIDTONE_DEFAULT: f32 = 0.;
     const PHASE_DEFAULT: f32 = 0.;
+    const TWIST_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
             center: Self::CENTER_DEFAULT,
@@ -32,6 +34,7 @@ impl Gradient {
             phase: Self::PHASE_DEFAULT,
             saturation: Self::SATURATION_DEFAULT,
             saturation_non_midtone: Self::SATURATION_NON_MIDTONE_DEFAULT,
+            twist: Self::TWIST_DEFAULT,
             extend: true,
         }
     }
@@ -46,6 +49,7 @@ impl designer::Designer for Gradient {
             phase,
             saturation,
             saturation_non_midtone,
+            twist,
             extend,
         } = &mut c;
         ui.vertical(|ui| {
@@ -78,6 +82,7 @@ impl designer::Designer for Gradient {
                 Self::ROTATION_DEFAULT,
             );
             resettable_slider(ui, phase, "phase", -PI..=PI, Self::PHASE_DEFAULT);
+            resettable_slider(ui, twist, "twist", -PI * 5. ..= PI * 5., Self::PHASE_DEFAULT);
             resettable_slider(
                 ui,
                 saturation,
@@ -107,7 +112,7 @@ impl designer::Designer for Gradient {
             let xcenter = 2. * (x - 0.5);
             let ycenter = 2. * (y - 0.5);
             let lightness = self.center.l - ycenter * 0.5;
-            let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase);
+            let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase + ycenter * self.twist);
             let chroma = vec2(rot.x, rot.y) + vec2(self.center.a, self.center.b);
             let midtone_mask = ((lightness - NEUTRAL_LAB.l).abs() * 2.).powi(2);
             let saturation = (self.saturation
