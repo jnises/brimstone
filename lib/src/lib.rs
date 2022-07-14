@@ -1,7 +1,7 @@
 mod designer;
 mod gamut_mapping;
 mod linear_gradient;
-mod spiral_gradient;
+mod hue_gradient;
 mod utils;
 use crate::designer::Designer;
 use eframe::{egui, App};
@@ -16,14 +16,14 @@ const IMG_SIZE: usize = 512;
 enum DesignerType {
     Linear,
     #[default]
-    Spiral,
+    Hue,
 }
 
 impl DesignerType {
     fn make(&self) -> Box<dyn Designer> {
         match self {
             DesignerType::Linear => Box::new(linear_gradient::Gradient::new()),
-            DesignerType::Spiral => Box::new(spiral_gradient::Gradient::new()),
+            DesignerType::Hue => Box::new(hue_gradient::Gradient::new()),
         }
     }
 }

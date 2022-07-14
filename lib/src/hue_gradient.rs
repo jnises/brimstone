@@ -5,9 +5,9 @@ use crate::{
         vec3_to_oklab, NEUTRAL_LAB,
     },
 };
-use eframe::egui;
 use glam::{vec3, Vec2};
-use palette::{float::Float, Oklab, Srgb};
+use palette::{Oklab, Srgb};
+use std::f32::consts::PI;
 
 #[derive(PartialEq, Clone)]
 pub struct Gradient {
@@ -21,9 +21,9 @@ pub struct Gradient {
 
 impl Gradient {
     const CENTER_DEFAULT: Oklab = NEUTRAL_LAB;
-    const ROTATION_DEFAULT: f32 = std::f32::consts::PI;
+    const ROTATION_DEFAULT: f32 = 2. * std::f32::consts::PI;
     const SATURATION_DEFAULT: f32 = 0.5;
-    const SATURATION_MIDTONE_DEFAULT: f32 = 0.;
+    const SATURATION_MIDTONE_DEFAULT: f32 = 0.5;
     const PHASE_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
@@ -74,14 +74,14 @@ impl designer::Designer for Gradient {
                 ui,
                 rotation,
                 "rotation",
-                0. ..=std::f32::consts::PI,
+                0. ..= PI * 2.,
                 Self::ROTATION_DEFAULT,
             );
             resettable_slider(
                 ui,
                 phase,
                 "phase",
-                0. ..=std::f32::consts::PI,
+                -PI ..= PI,
                 Self::PHASE_DEFAULT,
             );
             resettable_slider(
@@ -112,7 +112,7 @@ impl designer::Designer for Gradient {
         render_par(size, buf, |x, y| {
             let xcenter = 2. * (x - 0.5);
             let ycenter = 2. * (y - 0.5);
-            let rot = Vec2::from_angle(xcenter * self.rotation + self.phase);
+            let rot = Vec2::from_angle(xcenter * 0.5 * self.rotation + self.phase);
             let chroma = vec3(0., rot.x, rot.y);
             let midtone = (ycenter.abs()).powi(2);
             let saturation = (self.saturation * (1. - self.saturation_midtone * midtone)).max(0.);
