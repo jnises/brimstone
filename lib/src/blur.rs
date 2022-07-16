@@ -68,32 +68,31 @@ where
         + ops::Div<f32, Output = T>
         + Default,
 {
+    debug_assert!(buf.len() == w * h);
     assert!(filter_width % 2 == 1);
     if filter_width == 1 {
         return;
     }
     let rd = (filter_width as usize - 1) / 2;
+    let mut tmp = vec![];
+    tmp.extend_from_slice(buf);
     // TODO rayon
-    // TODO copy entire buf to temporary?
-    for y in 0..h {
-        let rowi = y * w;
-        let mut tmp = vec![];
-        tmp.extend_from_slice(&buf[y * w..(y + 1) * w]);
+    tmp.chunks_exact(w).zip(buf.chunks_exact_mut(w)).for_each(|(inp, out)| {
         let mut acc = T::default();
         for _ in 0..rd {
-            acc += tmp[0];
+            acc += inp[0];
         }
         for i in 0..=rd {
-            acc += tmp[i];
+            acc += inp[i];
         }
         for x in 0..w {
-            buf[rowi + x] = acc / filter_width as f32;
+            out[x] = acc / filter_width as f32;
             acc += if x >= w - rd - 1 {
-                *tmp.last().unwrap()
+                *inp.last().unwrap()
             } else {
-                tmp[x + rd + 1]
+                inp[x + rd + 1]
             };
-            acc -= if x < rd { tmp[0] } else { tmp[x - rd] };
+            acc -= if x < rd { inp[0] } else { inp[x - rd] };
         }
-    }
+    });
 }
