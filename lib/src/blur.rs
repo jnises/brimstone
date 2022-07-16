@@ -1,3 +1,7 @@
+use rayon::{
+    iter::{IndexedParallelIterator, ParallelIterator},
+    slice::{ParallelSlice, ParallelSliceMut},
+};
 use std::ops;
 
 /// approximation of gaussian blur
@@ -8,7 +12,9 @@ where
         + ops::AddAssign
         + ops::SubAssign
         + ops::Div<f32, Output = T>
-        + Default,
+        + Default
+        + Sync
+        + Send,
 {
     debug_assert!(buf.len() == w * h);
     // TODO use non-in-place transpose to allow non-square
@@ -66,7 +72,9 @@ where
         + ops::AddAssign
         + ops::SubAssign
         + ops::Div<f32, Output = T>
-        + Default,
+        + Default
+        + Sync
+        + Send,
 {
     debug_assert!(buf.len() == w * h);
     assert!(filter_width % 2 == 1);
@@ -76,23 +84,24 @@ where
     let rd = (filter_width as usize - 1) / 2;
     let mut tmp = vec![];
     tmp.extend_from_slice(buf);
-    // TODO rayon
-    tmp.chunks_exact(w).zip(buf.chunks_exact_mut(w)).for_each(|(inp, out)| {
-        let mut acc = T::default();
-        for _ in 0..rd {
-            acc += inp[0];
-        }
-        for i in 0..=rd {
-            acc += inp[i];
-        }
-        for x in 0..w {
-            out[x] = acc / filter_width as f32;
-            acc += if x >= w - rd - 1 {
-                *inp.last().unwrap()
-            } else {
-                inp[x + rd + 1]
-            };
-            acc -= if x < rd { inp[0] } else { inp[x - rd] };
-        }
-    });
+    tmp.par_chunks_exact(w)
+        .zip(buf.par_chunks_exact_mut(w))
+        .for_each(|(inp, out)| {
+            let mut acc = T::default();
+            for _ in 0..rd {
+                acc += inp[0];
+            }
+            for i in 0..=rd {
+                acc += inp[i];
+            }
+            for x in 0..w {
+                out[x] = acc / filter_width as f32;
+                acc += if x >= w - rd - 1 {
+                    *inp.last().unwrap()
+                } else {
+                    inp[x + rd + 1]
+                };
+                acc -= if x < rd { inp[0] } else { inp[x - rd] };
+            }
+        });
 }
