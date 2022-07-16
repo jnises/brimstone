@@ -3,6 +3,7 @@ mod gamut_mapping;
 mod hue_gradient;
 mod linear_gradient;
 mod utils;
+mod blur;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};

@@ -1,5 +1,5 @@
 use crate::{
-    designer,
+    blur, designer,
     utils::{
         oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
         vec3_to_oklab, NEUTRAL_LAB,
@@ -8,7 +8,10 @@ use crate::{
 use glam::{vec2, Vec2, Vec3};
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator},
+    iter::{
+        IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator,
+        ParallelIterator,
+    },
     slice::ParallelSliceMut,
 };
 use std::f32::consts::PI;
@@ -23,7 +26,7 @@ pub struct Gradient {
     twist: f32,
     twist_v: f32,
     extend: bool,
-    relax: bool,
+    smooth: f32,
 }
 
 impl Gradient {
@@ -34,6 +37,7 @@ impl Gradient {
     const PHASE_DEFAULT: f32 = 0.;
     const TWIST_DEFAULT: f32 = 0.;
     const TWIST_V_DEFAULT: f32 = 0.;
+    const SMOOTH_DEFAULT: f32 = 0.;
     pub fn new() -> Self {
         Self {
             center: Self::CENTER_DEFAULT,
@@ -44,7 +48,7 @@ impl Gradient {
             twist: Self::TWIST_DEFAULT,
             twist_v: Self::TWIST_V_DEFAULT,
             extend: true,
-            relax: false,
+            smooth: Self::SMOOTH_DEFAULT,
         }
     }
 }
@@ -61,7 +65,7 @@ impl designer::Designer for Gradient {
             twist,
             twist_v,
             extend,
-            relax,
+            smooth,
         } = &mut c;
         ui.vertical(|ui| {
             resettable_slider(
@@ -116,7 +120,7 @@ impl designer::Designer for Gradient {
                 Self::SATURATION_NON_MIDTONE_DEFAULT,
             );
             ui.checkbox(extend, "extend");
-            ui.checkbox(relax, "relax");
+            resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
         });
         if c != *self {
             *self = c;
@@ -146,41 +150,18 @@ impl designer::Designer for Gradient {
                 oklab_to_srgb(&lab)
             }
         });
-        if self.relax {
-            const STEP: f32 = 0.2;
-            for _ in 0..100 {
-                let labbuf: Vec<_> = buf
-                    .par_iter()
-                    .map(|c| oklab_to_vec3(palette::Oklab::from_color_unclamped(c.into_linear())))
-                    .collect();
-                // TODO separable?
-                // TODO gaussian?
-                buf.par_chunks_exact_mut(size.0)
-                    .enumerate()
-                    .for_each(|(y, row)| {
-                        for x in 0..size.0 {
-                            let idx = y * size.0 + x;
-                            let lab = labbuf[idx];
-                            let xforce = match x {
-                                i if i == (size.0 - 1) || i == 0 => Vec3::ZERO,
-                                _ => {
-                                    // TODO why the subtraction? why not just a gaussian kernel or something?
-                                    let offset = labbuf[idx + 1] + labbuf[idx - 1] - lab * 2.;
-                                    offset * STEP
-                                }
-                            };
-                            let yforce = match y {
-                                i if i == (size.1 - 1) || i == 0 => Vec3::ZERO,
-                                _ => {
-                                    let offset =
-                                        labbuf[idx + size.0] + labbuf[idx - size.0] - lab * 2.;
-                                    offset * STEP
-                                }
-                            };
-                            row[x] = oklab_to_srgb_clipped(vec3_to_oklab(lab + xforce + yforce));
-                        }
-                    });
-            }
+        if self.smooth > 0. {
+            // TODO have rayon split the work into bigger chunks to reduce sync?
+            let mut labbuf: Vec<_> = buf
+                .par_iter()
+                .map(|c| palette::Oklab::from_color_unclamped(c.into_linear()))
+                .collect();
+            blur::gaussian_blur(labbuf.as_mut(), size.0, size.1, self.smooth);
+            labbuf
+                .par_iter()
+                .copied()
+                .zip(buf.par_iter_mut())
+                .for_each(|(a, b)| *b = oklab_to_srgb_clipped(a));
         }
     }
 }
