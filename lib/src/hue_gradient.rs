@@ -1,18 +1,11 @@
 use crate::{
     blur, designer,
-    utils::{
-        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
-        vec3_to_oklab, NEUTRAL_LAB,
-    },
+    utils::{oklab_to_srgb, oklab_to_srgb_clipped, render_par, resettable_slider, NEUTRAL_LAB},
 };
-use glam::{vec2, Vec2, Vec3};
+use glam::{vec2, Vec2};
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
-use rayon::{
-    iter::{
-        IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator,
-        ParallelIterator,
-    },
-    slice::ParallelSliceMut,
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use std::f32::consts::PI;
 
