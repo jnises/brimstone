@@ -1,9 +1,10 @@
 use crate::{
     blur, designer,
+    lab_ui::LabUi,
     utils::{
         oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
         vec3_to_oklab, NEUTRAL_LAB,
-    }, lab_ui::LabUi,
+    },
 };
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
@@ -75,6 +76,8 @@ impl designer::Designer for Gradient {
         } = &mut c;
         ui.vertical(|ui| {
             ui.add(LabUi::new(center, "center").default_value(Self::CENTER_DEFAULT));
+            let slope2_range = 2. * Oklab::<f32>::min_a()..=2. * Oklab::<f32>::max_a();
+            let slope3_range = 2. * Oklab::<f32>::min_a()..=2. * Oklab::<f32>::max_a();
             ui.add(
                 LabUi::new(x_slope, "x")
                     .default_value(Self::X_SLOPE_DEFAULT)
@@ -83,12 +86,16 @@ impl designer::Designer for Gradient {
             ui.add(
                 LabUi::new(x2_slope, "x2")
                     .default_value(Self::X2_SLOPE_DEFAULT)
-                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l())
+                    .a_range(slope2_range.clone())
+                    .b_range(slope2_range.clone()),
             );
             ui.add(
                 LabUi::new(x3_slope, "x3")
                     .default_value(Self::X3_SLOPE_DEFAULT)
-                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l())
+                    .a_range(slope3_range.clone())
+                    .b_range(slope3_range.clone()),
             );
             ui.add(
                 LabUi::new(y_slope, "y")
@@ -98,12 +105,16 @@ impl designer::Designer for Gradient {
             ui.add(
                 LabUi::new(y2_slope, "y2")
                     .default_value(Self::Y2_SLOPE_DEFAULT)
-                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l())
+                    .a_range(slope2_range.clone())
+                    .b_range(slope2_range.clone()),
             );
             ui.add(
                 LabUi::new(y3_slope, "y3")
                     .default_value(Self::Y3_SLOPE_DEFAULT)
-                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l())
+                    .a_range(slope3_range.clone())
+                    .b_range(slope3_range.clone()),
             );
             ui.checkbox(extend, "extend");
             ui.add_enabled_ui(*extend, |ui| {
@@ -129,7 +140,7 @@ impl designer::Designer for Gradient {
                     + xcenter.powi(3) * oklab_to_vec3(self.x3_slope)
                     + ycenter * oklab_to_vec3(self.y_slope)
                     + ycenter.powi(2) * oklab_to_vec3(self.y2_slope)
-                    + ycenter.powi(3) * oklab_to_vec3(self.y3_slope)
+                    + ycenter.powi(3) * oklab_to_vec3(self.y3_slope),
             );
             if self.extend {
                 oklab_to_srgb_clipped(lab)
