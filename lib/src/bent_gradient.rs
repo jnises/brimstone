@@ -41,7 +41,7 @@ impl designer::Designer for Gradient {
             extend,
             smooth,
         } = &mut c;
-        ui.vertical(|ui| {
+        egui::Grid::new("params").show(ui, |ui| {
             resettable_slider(
                 ui,
                 &mut center.l,
@@ -49,6 +49,7 @@ impl designer::Designer for Gradient {
                 Oklab::min_l()..=Oklab::max_l(),
                 Self::CENTER_DEFAULT.l,
             );
+            ui.end_row();
             resettable_slider(
                 ui,
                 &mut center.a,
@@ -56,6 +57,7 @@ impl designer::Designer for Gradient {
                 Oklab::<f32>::min_a() * 2.0..=Oklab::<f32>::max_b() * 2.,
                 Self::CENTER_DEFAULT.a,
             );
+            ui.end_row();
             resettable_slider(
                 ui,
                 &mut center.b,
@@ -63,21 +65,31 @@ impl designer::Designer for Gradient {
                 Oklab::<f32>::min_b() * 2.0..=Oklab::<f32>::max_b() * 2.,
                 Self::CENTER_DEFAULT.b,
             );
+            ui.end_row();
             // TODO change
             ui.add(egui::Slider::new(&mut x_slope.l, -1f32..=1.).text("L x slope"));
+            ui.end_row();
             ui.add(egui::Slider::new(&mut x_slope.b, -1f32..=1.).text("b x slope"));
+            ui.end_row();
             ui.add(egui::Slider::new(&mut x_slope.a, -1f32..=1.).text("a x slope"));
+            ui.end_row();
             ui.add(egui::Slider::new(&mut y_slope.l, -1f32..=1.).text("L y slope"));
+            ui.end_row();
             ui.add(egui::Slider::new(&mut y_slope.b, -1f32..=1.).text("b y slope"));
+            ui.end_row();
             ui.add(egui::Slider::new(&mut y_slope.a, -1f32..=1.).text("a y slope"));
+            ui.end_row();
             if ui.add(egui::Button::new("reset")).clicked() {
                 *center = NEUTRAL_LAB;
                 *x_slope = Oklab::new(0., 0., 0.);
                 *y_slope = Oklab::new(0., 0., 0.);
             }
+            ui.end_row();
             ui.checkbox(extend, "extend");
+            ui.end_row();
             // TODO disable when extend is turned on
-            resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
+            ui.add_enabled_ui(*extend, |ui| resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT));
+            ui.end_row();
         });
         if c != *self {
             *self = c;
