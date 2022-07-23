@@ -1,13 +1,10 @@
-use std::ops::RangeInclusive;
-
 use crate::{
     blur, designer,
     utils::{
         oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
-        resettable_slider_raw, vec3_to_oklab, NEUTRAL_LAB,
-    },
+        vec3_to_oklab, NEUTRAL_LAB,
+    }, lab_ui::LabUi,
 };
-use eframe::egui::{self, Widget};
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
@@ -17,7 +14,11 @@ use rayon::iter::{
 pub struct Gradient {
     center: Oklab,
     x_slope: Oklab,
+    x2_slope: Oklab,
+    x3_slope: Oklab,
     y_slope: Oklab,
+    y2_slope: Oklab,
+    y3_slope: Oklab,
     extend: bool,
     smooth: f32,
 }
@@ -30,16 +31,28 @@ impl Gradient {
         a: 0.,
         b: 0.,
     };
+    const X2_SLOPE_DEFAULT: Oklab = Self::X_SLOPE_DEFAULT;
+    const X3_SLOPE_DEFAULT: Oklab = Self::X2_SLOPE_DEFAULT;
     const Y_SLOPE_DEFAULT: Oklab = Oklab {
         l: -1.,
         a: 0.,
         b: 0.,
     };
+    const Y2_SLOPE_DEFAULT: Oklab = Oklab {
+        l: 0.,
+        a: 0.,
+        b: 0.,
+    };
+    const Y3_SLOPE_DEFAULT: Oklab = Self::Y2_SLOPE_DEFAULT;
     pub fn new() -> Self {
         Self {
             center: NEUTRAL_LAB,
             x_slope: Self::X_SLOPE_DEFAULT,
+            x2_slope: Self::X2_SLOPE_DEFAULT,
+            x3_slope: Self::X3_SLOPE_DEFAULT,
             y_slope: Self::Y_SLOPE_DEFAULT,
+            y2_slope: Self::Y2_SLOPE_DEFAULT,
+            y3_slope: Self::Y3_SLOPE_DEFAULT,
             extend: true,
             smooth: Self::SMOOTH_DEFAULT,
         }
@@ -52,7 +65,11 @@ impl designer::Designer for Gradient {
         let Gradient {
             center,
             x_slope,
+            x2_slope,
+            x3_slope,
             y_slope,
+            y2_slope,
+            y3_slope,
             extend,
             smooth,
         } = &mut c;
@@ -64,8 +81,28 @@ impl designer::Designer for Gradient {
                     .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
             );
             ui.add(
+                LabUi::new(x2_slope, "x2")
+                    .default_value(Self::X2_SLOPE_DEFAULT)
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+            );
+            ui.add(
+                LabUi::new(x3_slope, "x3")
+                    .default_value(Self::X3_SLOPE_DEFAULT)
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+            );
+            ui.add(
                 LabUi::new(y_slope, "y")
                     .default_value(Self::Y_SLOPE_DEFAULT)
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+            );
+            ui.add(
+                LabUi::new(y2_slope, "y2")
+                    .default_value(Self::Y2_SLOPE_DEFAULT)
+                    .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
+            );
+            ui.add(
+                LabUi::new(y3_slope, "y3")
+                    .default_value(Self::Y3_SLOPE_DEFAULT)
                     .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l()),
             );
             ui.checkbox(extend, "extend");
@@ -88,7 +125,11 @@ impl designer::Designer for Gradient {
             let lab = vec3_to_oklab(
                 oklab_to_vec3(self.center)
                     + xcenter * oklab_to_vec3(self.x_slope)
-                    + ycenter * oklab_to_vec3(self.y_slope),
+                    + xcenter.powi(2) * oklab_to_vec3(self.x2_slope)
+                    + xcenter.powi(3) * oklab_to_vec3(self.x3_slope)
+                    + ycenter * oklab_to_vec3(self.y_slope)
+                    + ycenter.powi(2) * oklab_to_vec3(self.y2_slope)
+                    + ycenter.powi(3) * oklab_to_vec3(self.y3_slope)
             );
             if self.extend {
                 oklab_to_srgb_clipped(lab)
@@ -109,65 +150,5 @@ impl designer::Designer for Gradient {
                 .zip(buf.par_iter_mut())
                 .for_each(|(a, b)| *b = oklab_to_srgb_clipped(a));
         }
-    }
-}
-
-// TODO make this show a color picker?
-struct LabUi<'a> {
-    lab: &'a mut Oklab,
-    label: &'a str,
-    l_range: RangeInclusive<f32>,
-    a_range: RangeInclusive<f32>,
-    b_range: RangeInclusive<f32>,
-    default_value: Oklab,
-}
-
-impl<'a> LabUi<'a> {
-    pub fn new(lab: &'a mut Oklab, label: &'a str) -> Self {
-        Self {
-            lab,
-            label,
-            l_range: Oklab::min_l()..=Oklab::max_l(),
-            a_range: Oklab::<f32>::min_a()..=Oklab::<f32>::max_a(),
-            b_range: Oklab::<f32>::min_b()..=Oklab::<f32>::max_b(),
-            default_value: NEUTRAL_LAB,
-        }
-    }
-
-    pub fn l_range(mut self, range: RangeInclusive<f32>) -> Self {
-        self.l_range = range;
-        self
-    }
-
-    pub fn a_range(mut self, range: RangeInclusive<f32>) -> Self {
-        self.a_range = range;
-        self
-    }
-
-    pub fn b_range(mut self, range: RangeInclusive<f32>) -> Self {
-        self.b_range = range;
-        self
-    }
-
-    pub fn default_value(mut self, default_value: Oklab) -> Self {
-        self.default_value = default_value;
-        self
-    }
-}
-
-impl<'a> Widget for LabUi<'a> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        egui::Grid::new(self.label)
-            .show(ui, |ui| {
-                ui.label(self.label);
-                ui.end_row();
-                resettable_slider_raw(ui, &mut self.lab.l, "L", self.l_range, self.default_value.l);
-                ui.end_row();
-                resettable_slider_raw(ui, &mut self.lab.a, "a", self.a_range, self.default_value.a);
-                ui.end_row();
-                resettable_slider_raw(ui, &mut self.lab.b, "b", self.b_range, self.default_value.b);
-                ui.end_row();
-            })
-            .response
     }
 }

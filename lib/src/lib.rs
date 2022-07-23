@@ -3,6 +3,7 @@ mod blur;
 mod designer;
 mod gamut_mapping;
 mod hue_gradient;
+mod lab_ui;
 mod linear_gradient;
 mod utils;
 use crate::designer::Designer;
@@ -125,12 +126,15 @@ impl App for Gui {
                     }
                 });
                 ui.separator();
-                ui.horizontal(|ui| {
+                ui.horizontal_top(|ui| {
                     ui.set_min_width(250.);
-                    if self.current_designer.1.show_ui(ui) || self.texture.is_none() {
-                        let tex = make_texture_from_params(ctx, self.current_designer.1.as_ref());
-                        self.texture = Some(tex);
-                    }
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        if self.current_designer.1.show_ui(ui) || self.texture.is_none() {
+                            let tex =
+                                make_texture_from_params(ctx, self.current_designer.1.as_ref());
+                            self.texture = Some(tex);
+                        }
+                    });
                     let texture = self.texture.as_ref().unwrap();
                     ui.image(texture, texture.size_vec2());
                 });
