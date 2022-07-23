@@ -6,7 +6,3 @@ members = [
     "standalone",
 ]
 default-members = ["standalone"]
-
-[profile.release]
-lto = true
-opt-level = 2

@@ -1,9 +1,11 @@
+mod bent_gradient;
+mod blur;
 mod designer;
 mod gamut_mapping;
 mod hue_gradient;
+mod lab_ui;
 mod linear_gradient;
 mod utils;
-mod blur;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -16,8 +18,9 @@ const IMG_SIZE: usize = 512;
 #[derive(EnumIter, Debug, PartialEq, Default, Copy, Clone)]
 enum DesignerType {
     Linear,
-    #[default]
     Hue,
+    #[default]
+    Bent,
 }
 
 impl DesignerType {
@@ -25,6 +28,7 @@ impl DesignerType {
         match self {
             DesignerType::Linear => Box::new(linear_gradient::Gradient::new()),
             DesignerType::Hue => Box::new(hue_gradient::Gradient::new()),
+            DesignerType::Bent => Box::new(bent_gradient::Gradient::new()),
         }
     }
 }
@@ -122,12 +126,15 @@ impl App for Gui {
                     }
                 });
                 ui.separator();
-                ui.horizontal(|ui| {
+                ui.horizontal_top(|ui| {
                     ui.set_min_width(250.);
-                    if self.current_designer.1.show_ui(ui) || self.texture.is_none() {
-                        let tex = make_texture_from_params(ctx, self.current_designer.1.as_ref());
-                        self.texture = Some(tex);
-                    }
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        if self.current_designer.1.show_ui(ui) || self.texture.is_none() {
+                            let tex =
+                                make_texture_from_params(ctx, self.current_designer.1.as_ref());
+                            self.texture = Some(tex);
+                        }
+                    });
                     let texture = self.texture.as_ref().unwrap();
                     ui.image(texture, texture.size_vec2());
                 });

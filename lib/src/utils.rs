@@ -72,6 +72,23 @@ pub fn oklab_to_srgb(lab: &palette::Oklab) -> Srgb<f32> {
     }
 }
 
+pub fn resettable_slider_raw(
+    ui: &mut Ui,
+    value: &mut f32,
+    text: &str,
+    range: RangeInclusive<f32>,
+    default_value: f32,
+) {
+    debug_assert!(range.contains(&default_value));
+    ui.add(egui::Slider::new(value, range).text(text));
+    if ui
+        .add_enabled(*value != default_value, egui::Button::new("⟲"))
+        .clicked()
+    {
+        *value = default_value;
+    }
+}
+
 pub fn resettable_slider(
     ui: &mut Ui,
     value: &mut f32,
@@ -80,13 +97,5 @@ pub fn resettable_slider(
     default_value: f32,
 ) {
     debug_assert!(range.contains(&default_value));
-    ui.horizontal(|ui| {
-        ui.add(egui::Slider::new(value, range).text(text));
-        if ui
-            .add_enabled(*value != default_value, egui::Button::new("⟲"))
-            .clicked()
-        {
-            *value = default_value;
-        }
-    });
+    ui.horizontal(|ui| resettable_slider_raw(ui, value, text, range, default_value));
 }
