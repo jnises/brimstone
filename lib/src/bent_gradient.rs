@@ -1,12 +1,15 @@
 use crate::{
-    designer,
+    blur, designer,
     utils::{
-        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, vec3_to_oklab, NEUTRAL_LAB, resettable_slider,
-    }, blur,
+        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
+        vec3_to_oklab, NEUTRAL_LAB,
+    },
 };
 use eframe::egui;
-use palette::{Oklab, Srgb, convert::FromColorUnclamped};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator, IndexedParallelIterator, IntoParallelRefMutIterator};
+use palette::{convert::FromColorUnclamped, Oklab, Srgb};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
 
 #[derive(PartialEq, Clone)]
 pub struct Gradient {
@@ -88,7 +91,9 @@ impl designer::Designer for Gradient {
             ui.checkbox(extend, "extend");
             ui.end_row();
             // TODO disable when extend is turned on
-            ui.add_enabled_ui(*extend, |ui| resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT));
+            ui.add_enabled_ui(*extend, |ui| {
+                resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT)
+            });
             ui.end_row();
         });
         if c != *self {
