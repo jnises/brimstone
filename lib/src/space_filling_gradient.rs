@@ -2,10 +2,10 @@ use crate::{
     blur, designer,
     lab_ui::LabUi,
     utils::{
-        oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize,
-        resettable_slider, vec3_to_oklab, NEUTRAL_LAB,
+        oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider, vec3_to_oklab,
     },
 };
+use glam::vec3;
 use num_bigint::BigUint;
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
@@ -14,7 +14,7 @@ use rayon::iter::{
 
 #[derive(PartialEq, Clone)]
 pub struct Gradient {
-    center: Oklab,
+    offset: Oklab,
     scale: Oklab,
     // TODO add rotation
     levels: u32,
@@ -22,7 +22,11 @@ pub struct Gradient {
 }
 
 impl Gradient {
-    const CENTER_DEFAULT: Oklab = NEUTRAL_LAB;
+    const OFFSET_DEFAULT: Oklab = Oklab {
+        l: 0.,
+        a: 0.,
+        b: 0.,
+    };
     const SCALE_DEFAULT: Oklab = Oklab {
         l: 1.,
         a: 1.,
@@ -32,7 +36,7 @@ impl Gradient {
     const LEVELS_DEFAULT: u32 = 3;
     pub fn new() -> Self {
         Self {
-            center: Self::CENTER_DEFAULT,
+            offset: Self::OFFSET_DEFAULT,
             scale: Self::SCALE_DEFAULT,
             levels: Self::LEVELS_DEFAULT,
             smooth: Self::SMOOTH_DEFAULT,
@@ -44,13 +48,17 @@ impl designer::Designer for Gradient {
     fn show_ui(&mut self, ui: &mut eframe::egui::Ui) -> bool {
         let mut c = self.clone();
         let Gradient {
-            center,
+            offset,
             scale,
             smooth,
             levels,
         } = &mut c;
         ui.vertical(|ui| {
-            ui.add(LabUi::new(center, "center").default_value(Self::CENTER_DEFAULT));
+            ui.add(
+                LabUi::new(offset, "offset")
+                    .default_value(Self::OFFSET_DEFAULT)
+                    .l_range(-1.0..=1.0),
+            );
             let scale_range = 0.01..=2.0;
             ui.add(
                 LabUi::new(scale, "scale")
@@ -116,8 +124,12 @@ impl designer::Designer for Gradient {
                     .as_ref(),
             );
             let mut v3 = v3_lower.lerp(v3_upper, f as f32);
+            // TODO change order of these
+            v3 *= vec3(1., 2., 2.);
+            v3 += vec3(-0.5, -1., -1.);
             v3 *= oklab_to_vec3(self.scale);
-            v3 += oklab_to_vec3(self.center);
+            v3.x += 0.5;
+            v3 += oklab_to_vec3(self.offset);
 
             let lab = vec3_to_oklab(v3);
             // TODO do we need clipped? in case the curve goes outside gamut?
