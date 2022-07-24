@@ -42,7 +42,7 @@ impl designer::Designer for Gradient {
         } = &mut c;
         ui.vertical(|ui| {
             ui.add(LabUi::new(center, "center").default_value(Self::CENTER_DEFAULT));
-            resettable_slider(ui, levels, "levels", 1..=10, Self::LEVELS_DEFAULT);
+            resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
             resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
         });
         if c != *self {
@@ -56,49 +56,51 @@ impl designer::Designer for Gradient {
     fn render(&self, size: (usize, usize), buf: &mut [Srgb]) {
         assert!(size.0 == size.1);
         assert!(size.0.is_power_of_two());
-        let bits_in = usize::BITS - size.0.leading_zeros() - 1;
-        let maxid_in = size.0.pow(2) - 1;
-        // TODO is this correct?
-        let bits_out = self.levels + 1;
-        let size_out = 2_u32.pow(self.levels);
-        let maxid_out = size_out.pow(3) - 1;
+        let bits_2d = usize::BITS - size.0.leading_zeros() - 1;
+        let maxid_2d = size.0.pow(2) - 1;
+        let bits_3d = self.levels + 1;
+        let size_3d = 2_u32.pow(bits_3d);
+        let maxid_3d = size_3d.pow(3) - 1;
         render_par_usize(size, buf, |x, y| {
-            let hid_in =
-                hilbert::Point::new(0, &[x as u32, y as u32]).hilbert_transform(bits_in as usize);
-            let t = u64::try_from(hid_in).unwrap() as f64 / maxid_in as f64;
-            let hid_out_f = maxid_out as f64 * t;
-            let hid_lower_out = hid_out_f as u64;
-            let f = hid_out_f.fract();
+            let hid_2d =
+                hilbert::Point::new(0, &[x as u32, y as u32]).hilbert_transform(bits_2d as usize);
+            let t = u64::try_from(hid_2d).unwrap() as f64 / maxid_2d as f64;
+            debug_assert!(t <= 1.);
+            let hid_3d_f = maxid_3d as f64 * t;
+            let hid_lower_3d = hid_3d_f as u64;
+            debug_assert!(hid_lower_3d <= maxid_3d as u64);
+            let f = hid_3d_f.fract();
             let p3_lower = hilbert::Point::new_from_hilbert_index(
                 0,
-                &BigUint::from(hid_lower_out),
-                bits_out as usize,
+                &BigUint::from(hid_lower_3d),
+                bits_3d as usize,
                 3,
             );
             let v3_lower = glam::Vec3::from_slice(
                 p3_lower
                     .get_coordinates()
                     .iter()
-                    .map(|&a| a as f32 / size_out as f32)
+                    .map(|&a| a as f32 / size_3d as f32)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
             let p3_upper = hilbert::Point::new_from_hilbert_index(
                 0,
-                &BigUint::from(hid_lower_out + 1),
-                bits_out as usize,
+                &BigUint::from(hid_lower_3d + 1),
+                bits_3d as usize,
                 3,
             );
             let v3_upper = glam::Vec3::from_slice(
                 p3_upper
                     .get_coordinates()
                     .iter()
-                    .map(|&a| a as f32 / size_out as f32)
+                    .map(|&a| a as f32 / size_3d as f32)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
+            let v3 = v3_lower.lerp(v3_upper, f as f32);
 
-            let lab = vec3_to_oklab(v3_lower.lerp(v3_upper, f as f32));
+            let lab = vec3_to_oklab(v3);
             // TODO do we need clipped? in case the curve goes outside gamut?
             oklab_to_srgb_clipped(lab + self.center)
         });
