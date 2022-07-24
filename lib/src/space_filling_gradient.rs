@@ -2,7 +2,7 @@ use crate::{
     blur, designer,
     lab_ui::LabUi,
     utils::{
-        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, render_par_usize,
+        oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize,
         resettable_slider, vec3_to_oklab, NEUTRAL_LAB,
     },
 };
