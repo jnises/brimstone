@@ -6,6 +6,7 @@ mod hue_gradient;
 mod lab_ui;
 mod linear_gradient;
 mod utils;
+mod space_filling_gradient;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -19,8 +20,9 @@ const IMG_SIZE: usize = 512;
 enum DesignerType {
     Linear,
     Hue,
-    #[default]
     Bent,
+    #[default]
+    SpaceFilling,
 }
 
 impl DesignerType {
@@ -29,6 +31,7 @@ impl DesignerType {
             DesignerType::Linear => Box::new(linear_gradient::Gradient::new()),
             DesignerType::Hue => Box::new(hue_gradient::Gradient::new()),
             DesignerType::Bent => Box::new(bent_gradient::Gradient::new()),
+            DesignerType::SpaceFilling => Box::new(space_filling_gradient::Gradient::new()),
         }
     }
 }
