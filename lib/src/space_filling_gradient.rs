@@ -15,17 +15,25 @@ use rayon::iter::{
 #[derive(PartialEq, Clone)]
 pub struct Gradient {
     center: Oklab,
+    scale: Oklab,
+    // TODO add rotation
     levels: u32,
     smooth: f32,
 }
 
 impl Gradient {
     const CENTER_DEFAULT: Oklab = NEUTRAL_LAB;
+    const SCALE_DEFAULT: Oklab = Oklab {
+        l: 1.,
+        a: 1.,
+        b: 1.,
+    };
     const SMOOTH_DEFAULT: f32 = 0.;
     const LEVELS_DEFAULT: u32 = 3;
     pub fn new() -> Self {
         Self {
             center: Self::CENTER_DEFAULT,
+            scale: Self::SCALE_DEFAULT,
             levels: Self::LEVELS_DEFAULT,
             smooth: Self::SMOOTH_DEFAULT,
         }
@@ -37,11 +45,20 @@ impl designer::Designer for Gradient {
         let mut c = self.clone();
         let Gradient {
             center,
+            scale,
             smooth,
             levels,
         } = &mut c;
         ui.vertical(|ui| {
             ui.add(LabUi::new(center, "center").default_value(Self::CENTER_DEFAULT));
+            let scale_range = 0.01..=2.0;
+            ui.add(
+                LabUi::new(scale, "scale")
+                    .default_value(Self::SCALE_DEFAULT)
+                    .l_range(scale_range.clone())
+                    .a_range(scale_range.clone())
+                    .b_range(scale_range),
+            );
             resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
             resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
         });
@@ -98,11 +115,13 @@ impl designer::Designer for Gradient {
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
-            let v3 = v3_lower.lerp(v3_upper, f as f32);
+            let mut v3 = v3_lower.lerp(v3_upper, f as f32);
+            v3 *= oklab_to_vec3(self.scale);
+            v3 += oklab_to_vec3(self.center);
 
             let lab = vec3_to_oklab(v3);
             // TODO do we need clipped? in case the curve goes outside gamut?
-            oklab_to_srgb_clipped(lab + self.center)
+            oklab_to_srgb_clipped(lab)
         });
         if self.smooth > 0. {
             // TODO have rayon split the work into bigger chunks to reduce sync?
