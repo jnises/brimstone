@@ -4,7 +4,8 @@ use crate::{
     blur, designer,
     lab_ui::LabUi,
     utils::{
-        oklab_to_srgb_clipped, oklab_to_vec3, resettable_slider, vec3_to_oklab, oklab_to_srgb, render_par,
+        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par, resettable_slider,
+        vec3_to_oklab,
     },
 };
 use glam::{vec3, Mat2};
@@ -75,7 +76,13 @@ impl designer::Designer for Gradient {
                     .a_range(scale_range.clone())
                     .b_range(scale_range),
             );
-            resettable_slider(ui, rotation, "rotation", 0.0 ..= PI * 2.0, Self::ROTATION_DEFAULT);
+            resettable_slider(
+                ui,
+                rotation,
+                "rotation",
+                0.0..=PI * 2.0,
+                Self::ROTATION_DEFAULT,
+            );
             resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
             ui.checkbox(extend, "extend");
             ui.add_enabled_ui(*extend, |ui| {
