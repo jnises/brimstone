@@ -7,6 +7,7 @@ mod lab_ui;
 mod linear_gradient;
 mod utils;
 mod space_filling_gradient;
+mod space_filling_gradient_2;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -21,8 +22,9 @@ enum DesignerType {
     Linear,
     Hue,
     Bent,
-    #[default]
     SpaceFilling,
+    #[default]
+    SpaceFilling2,
 }
 
 impl DesignerType {
@@ -32,6 +34,7 @@ impl DesignerType {
             DesignerType::Hue => Box::new(hue_gradient::Gradient::new()),
             DesignerType::Bent => Box::new(bent_gradient::Gradient::new()),
             DesignerType::SpaceFilling => Box::new(space_filling_gradient::Gradient::new()),
+            DesignerType::SpaceFilling2 => Box::new(space_filling_gradient_2::Gradient::new()),
         }
     }
 }
