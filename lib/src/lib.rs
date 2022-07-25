@@ -22,8 +22,8 @@ enum DesignerType {
     Linear,
     Hue,
     Bent,
-    SpaceFilling,
     #[default]
+    SpaceFilling,
     SpaceFilling2,
 }
 

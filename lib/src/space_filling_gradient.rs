@@ -5,7 +5,8 @@ use crate::{
         oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider, vec3_to_oklab,
     },
 };
-use glam::vec3;
+use eframe::{egui::{Widget, Sense}, emath::vec2};
+use glam::{vec3, Quat};
 use num_bigint::BigUint;
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
@@ -17,6 +18,7 @@ pub struct Gradient {
     offset: Oklab,
     scale: Oklab,
     // TODO add rotation
+    rotation: Quat,
     levels: u32,
     smooth: f32,
 }
@@ -34,10 +36,12 @@ impl Gradient {
     };
     const SMOOTH_DEFAULT: f32 = 0.;
     const LEVELS_DEFAULT: u32 = 3;
+    const ROTATION_DEFAULT: Quat = Quat::IDENTITY;
     pub fn new() -> Self {
         Self {
             offset: Self::OFFSET_DEFAULT,
             scale: Self::SCALE_DEFAULT,
+            rotation: Self::ROTATION_DEFAULT,
             levels: Self::LEVELS_DEFAULT,
             smooth: Self::SMOOTH_DEFAULT,
         }
@@ -46,10 +50,12 @@ impl Gradient {
 
 impl designer::Designer for Gradient {
     fn show_ui(&mut self, ui: &mut eframe::egui::Ui) -> bool {
+        const SPACE: f32 = 10.;
         let mut c = self.clone();
         let Gradient {
             offset,
             scale,
+            rotation,
             smooth,
             levels,
         } = &mut c;
@@ -67,6 +73,8 @@ impl designer::Designer for Gradient {
                     .a_range(scale_range.clone())
                     .b_range(scale_range),
             );
+            ui.add_space(SPACE);
+            // TODO rotation
             resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
             resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
         });
@@ -127,6 +135,7 @@ impl designer::Designer for Gradient {
             // TODO change order of these
             v3 *= vec3(1., 2., 2.);
             v3 += vec3(-0.5, -1., -1.);
+            v3 = self.rotation * v3;
             v3 *= oklab_to_vec3(self.scale);
             v3.x += 0.5;
             v3 += oklab_to_vec3(self.offset);
@@ -148,5 +157,26 @@ impl designer::Designer for Gradient {
                 .zip(buf.par_iter_mut())
                 .for_each(|(a, b)| *b = oklab_to_srgb_clipped(a));
         }
+    }
+}
+
+struct Rotator<'a> {
+    quat: &'a mut Quat,
+}
+
+impl<'a> Rotator<'a> {
+    pub fn new(quat: &'a mut Quat) -> Self {
+        Self { quat }
+    }
+}
+
+impl<'a> Widget for Rotator<'a> {
+    fn ui(self, ui: &mut eframe::egui::Ui) -> eframe::egui::Response {
+        let response = ui.allocate_response(vec2(10., 10.), Sense::click_and_drag());
+        // TODO
+        if ui.is_rect_visible(response.rect) {
+
+        }
+        response
     }
 }
