@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use eframe::egui::{self, Ui};
+use eframe::{egui::{self, Ui}, emath};
 use glam::{vec3, Vec3};
 use palette::{convert::FromColorUnclamped, Clamp, Component, FromComponent, Oklab, Srgb};
 use rayon::{
@@ -15,14 +15,20 @@ where
     F: Fn(f32, f32) -> Srgb + Sync,
     T: Default + Copy + Send + FromComponent<f32> + Component,
 {
+    render_par_usize(size, buf, |x, y| func(x as f32 / size.0 as f32, y as f32 / size.1 as f32));
+}
+
+pub fn render_par_usize<F, T>(size: (usize, usize), buf: &mut [Srgb<T>], func: F)
+where
+    F: Fn(usize, usize) -> Srgb + Sync,
+    T: Default + Copy + Send + FromComponent<f32> + Component,
+{
     assert!(buf.len() == size.0 * size.1);
     buf.par_chunks_exact_mut(size.0)
         .enumerate()
         .for_each(|(y, row)| {
-            let normy = y as f32 / size.1 as f32;
             row.iter_mut().enumerate().for_each(|(x, pixel)| {
-                let normx = x as f32 / size.0 as f32;
-                let p: Srgb<T> = func(normx, normy).into_format();
+                let p: Srgb<T> = func(x, y).into_format();
                 *pixel = p;
             });
         });
@@ -72,12 +78,12 @@ pub fn oklab_to_srgb(lab: &palette::Oklab) -> Srgb<f32> {
     }
 }
 
-pub fn resettable_slider_raw(
+pub fn resettable_slider_raw<T: emath::Numeric>(
     ui: &mut Ui,
-    value: &mut f32,
+    value: &mut T,
     text: &str,
-    range: RangeInclusive<f32>,
-    default_value: f32,
+    range: RangeInclusive<T>,
+    default_value: T,
 ) {
     debug_assert!(range.contains(&default_value));
     ui.add(egui::Slider::new(value, range).text(text));
@@ -89,12 +95,12 @@ pub fn resettable_slider_raw(
     }
 }
 
-pub fn resettable_slider(
+pub fn resettable_slider<T: emath::Numeric>(
     ui: &mut Ui,
-    value: &mut f32,
+    value: &mut T,
     text: &str,
-    range: RangeInclusive<f32>,
-    default_value: f32,
+    range: RangeInclusive<T>,
+    default_value: T,
 ) {
     debug_assert!(range.contains(&default_value));
     ui.horizontal(|ui| resettable_slider_raw(ui, value, text, range, default_value));
