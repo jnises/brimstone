@@ -1,12 +1,16 @@
 use crate::{
     blur, designer,
     lab_ui::LabUi,
+    rotator::Rotator,
     utils::{
         oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider, vec3_to_oklab,
     },
 };
-use eframe::{egui::{Widget, Sense}, emath::vec2};
-use glam::{vec3, Quat};
+use eframe::{
+    egui::{self, Sense, Widget},
+    emath::vec2,
+};
+use glam::{vec3, Quat, Vec3};
 use num_bigint::BigUint;
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
@@ -74,6 +78,16 @@ impl designer::Designer for Gradient {
                     .b_range(scale_range),
             );
             ui.add_space(SPACE);
+            ui.label("rotation");
+            ui.horizontal(|ui| {
+                ui.add(Rotator::new(rotation));
+                if ui
+                    .add_enabled(*rotation != Self::ROTATION_DEFAULT, egui::Button::new("⟲"))
+                    .clicked()
+                {
+                    *rotation = Self::ROTATION_DEFAULT;
+                }
+            });
             // TODO rotation
             resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
             resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
@@ -132,10 +146,10 @@ impl designer::Designer for Gradient {
                     .as_ref(),
             );
             let mut v3 = v3_lower.lerp(v3_upper, f as f32);
-            // TODO change order of these
-            v3 *= vec3(1., 2., 2.);
-            v3 += vec3(-0.5, -1., -1.);
+            v3 -= Vec3::splat(0.5);
             v3 = self.rotation * v3;
+            v3 *= vec3(1., 2., 2.);
+            //v3 += vec3(-0.5, -1., -1.);
             v3 *= oklab_to_vec3(self.scale);
             v3.x += 0.5;
             v3 += oklab_to_vec3(self.offset);
@@ -157,26 +171,5 @@ impl designer::Designer for Gradient {
                 .zip(buf.par_iter_mut())
                 .for_each(|(a, b)| *b = oklab_to_srgb_clipped(a));
         }
-    }
-}
-
-struct Rotator<'a> {
-    quat: &'a mut Quat,
-}
-
-impl<'a> Rotator<'a> {
-    pub fn new(quat: &'a mut Quat) -> Self {
-        Self { quat }
-    }
-}
-
-impl<'a> Widget for Rotator<'a> {
-    fn ui(self, ui: &mut eframe::egui::Ui) -> eframe::egui::Response {
-        let response = ui.allocate_response(vec2(10., 10.), Sense::click_and_drag());
-        // TODO
-        if ui.is_rect_visible(response.rect) {
-
-        }
-        response
     }
 }

@@ -8,6 +8,7 @@ mod linear_gradient;
 mod space_filling_gradient;
 mod space_filling_gradient_2;
 mod utils;
+mod rotator;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
