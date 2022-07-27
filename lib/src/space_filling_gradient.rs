@@ -3,7 +3,8 @@ use crate::{
     lab_ui::LabUi,
     rotator::Rotator,
     utils::{
-        oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider, vec3_to_oklab,
+        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider,
+        vec3_to_oklab,
     },
 };
 use eframe::egui;
@@ -22,6 +23,7 @@ pub struct Gradient {
     rotation: Quat,
     levels: u32,
     smooth: f32,
+    extend: bool,
 }
 
 impl Gradient {
@@ -45,6 +47,7 @@ impl Gradient {
             rotation: Self::ROTATION_DEFAULT,
             levels: Self::LEVELS_DEFAULT,
             smooth: Self::SMOOTH_DEFAULT,
+            extend: true,
         }
     }
 }
@@ -59,6 +62,7 @@ impl designer::Designer for Gradient {
             rotation,
             smooth,
             levels,
+            extend,
         } = &mut c;
         ui.vertical(|ui| {
             ui.add(
@@ -87,7 +91,10 @@ impl designer::Designer for Gradient {
             });
             // TODO rotation
             resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
-            resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
+            ui.checkbox(extend, "extend");
+            ui.add_enabled_ui(*extend, |ui| {
+                resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
+            });
         });
         if c != *self {
             *self = c;
@@ -152,10 +159,13 @@ impl designer::Designer for Gradient {
             v3 += oklab_to_vec3(self.offset);
 
             let lab = vec3_to_oklab(v3);
-            // TODO do we need clipped? in case the curve goes outside gamut?
-            oklab_to_srgb_clipped(lab)
+            if self.extend {
+                oklab_to_srgb_clipped(lab)
+            } else {
+                oklab_to_srgb(&lab)
+            }
         });
-        if self.smooth > 0. {
+        if self.smooth > 0. && self.extend {
             // TODO have rayon split the work into bigger chunks to reduce sync?
             let mut labbuf: Vec<_> = buf
                 .par_iter()
