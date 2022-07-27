@@ -84,6 +84,7 @@ struct IcoSphere {
 
 impl IcoSphere {
     fn new(divisions: u32) -> Self {
+        // TODO icosahedron
         let v = [
             vec3(f32::sqrt(8. / 9.), 0., -1. / 3.),
             vec3(-f32::sqrt(2. / 9.), f32::sqrt(2. / 3.), -1. / 3.),
