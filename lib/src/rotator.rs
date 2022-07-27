@@ -20,11 +20,12 @@ impl<'a> Rotator<'a> {
 
 impl<'a> Widget for Rotator<'a> {
     fn ui(self, ui: &mut eframe::egui::Ui) -> eframe::egui::Response {
-        // TODO do we need a persistent id?
-        let id = ui.make_persistent_id("rotator");
+        // TODO when do we need persistent ids?
+        //let id = ui.make_persistent_id("rotator");
         const SIZE: f32 = 100.0;
         let (response, painter) =
             ui.allocate_painter(emath::vec2(SIZE, SIZE), Sense::click_and_drag());
+        let id = response.id;
         // TODO is this correct?
         let on = if let Some(pos) = response.interact_pointer_pos() {
             let data = ui
