@@ -6,10 +6,7 @@ use crate::{
         oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider, vec3_to_oklab,
     },
 };
-use eframe::{
-    egui::{self, Sense, Widget},
-    emath::vec2,
-};
+use eframe::egui;
 use glam::{vec3, Quat, Vec3};
 use num_bigint::BigUint;
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};

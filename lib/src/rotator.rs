@@ -1,10 +1,12 @@
+use std::cmp::Ordering;
+
 use eframe::{
-    egui::{Context, Id, Sense, Widget},
-    emath::{self, pos2, Pos2},
-    epaint::Shape,
+    egui::{Sense, Widget},
+    emath,
+    epaint::{Color32, Stroke},
 };
-use glam::{vec3, Quat, Vec2, Vec3};
-use once_cell::sync::Lazy;
+use glam::{Quat, Vec3};
+use palette::convert::FromColorUnclamped;
 
 pub struct Rotator<'a> {
     quat: &'a mut Quat,
@@ -33,16 +35,13 @@ impl<'a> Widget for Rotator<'a> {
                 })
                 .clone();
             let d = pos - data.start_pos;
-            // TODO fix this
             *self.quat = Quat::from_scaled_axis(glam::vec3(d.y, -d.x, 0.) * 0.01) * data.start_rot;
             true
         } else {
             ui.data().remove::<State>(id);
             false
         };
-        // TODO
         if ui.is_rect_visible(response.rect) {
-            //let how_on = ui.ctx().animate_bool(response.id, on);
             let visuals = ui.style().interact_selectable(&response, on);
             // TODO use some constant?
             let rect = response.rect.shrink(2.);
@@ -52,19 +51,30 @@ impl<'a> Widget for Rotator<'a> {
                 visuals.bg_fill,
                 visuals.fg_stroke,
             );
-            for t in ICOSPHERE.triangles.iter() {
-                // TODO use fixed size array
-                let rotated: Vec<_> = t
-                    .iter()
-                    .map(|&v| {
-                        let r = *self.quat * v;
-                        rect.center() + emath::vec2(r.x, r.y) * rect.width() / 2.
-                    })
-                    .collect();
-                // TODO backface culling
-                painter.line_segment([rotated[0], rotated[1]], visuals.fg_stroke);
-                painter.line_segment([rotated[0], rotated[2]], visuals.fg_stroke);
-                painter.line_segment([rotated[1], rotated[2]], visuals.fg_stroke);
+            let mut axis = [(Vec3::X, 0.), (Vec3::NEG_Y, 120.), (Vec3::NEG_Z, 240.)]
+                .into_iter()
+                .map(|(v, h)| (v, h, *self.quat * v))
+                .collect::<Vec<_>>();
+            axis.sort_by(|(_, _, Vec3 { z: az, .. }), (_, _, Vec3 { z: bz, .. })| {
+                bz.partial_cmp(az).unwrap_or(Ordering::Equal)
+            });
+            for (_, h, rv) in axis {
+                let depth = 1. - ((rv.z + 1.) / 2.).clamp(0., 1.);
+                let c = palette::Srgb::from_color_unclamped(palette::Oklch {
+                    l: 0.4 + depth * 0.4,
+                    chroma: 0.3 + depth * 0.2,
+                    hue: h.into(),
+                })
+                .into_format();
+                let p =
+                    rect.center() + emath::vec2(rv.x, rv.y) / (1.7 - depth) * rect.width() / 2.1;
+                painter.line_segment(
+                    [rect.center(), p],
+                    Stroke {
+                        width: 1.,
+                        color: Color32::from_rgb(c.red, c.green, c.blue),
+                    },
+                );
             }
         }
         response
@@ -76,47 +86,3 @@ struct State {
     start_rot: Quat,
     start_pos: emath::Pos2,
 }
-
-struct IcoSphere {
-    // TODO do a vertices, indices thing instead
-    triangles: Vec<[Vec3; 3]>,
-}
-
-impl IcoSphere {
-    fn new(divisions: u32) -> Self {
-        // TODO icosahedron
-        let v = [
-            vec3(f32::sqrt(8. / 9.), 0., -1. / 3.),
-            vec3(-f32::sqrt(2. / 9.), f32::sqrt(2. / 3.), -1. / 3.),
-            vec3(-f32::sqrt(2. / 9.), -f32::sqrt(2. / 3.), -1. / 3.),
-            vec3(0., 0., 1.),
-        ];
-        for i in v {
-            debug_assert!(i.is_normalized());
-        }
-        // TODO ccw
-        let mut triangles = vec![
-            [v[0], v[1], v[2]],
-            [v[0], v[2], v[3]],
-            [v[0], v[3], v[1]],
-            [v[1], v[2], v[3]],
-        ];
-        for _ in 0..divisions {
-            let prev: Vec<_> = triangles.drain(..).collect();
-            for t in prev {
-                let nv = [
-                    ((t[0] + t[1]) / 2.).normalize(),
-                    ((t[0] + t[2]) / 2.).normalize(),
-                    ((t[1] + t[2]) / 2.).normalize(),
-                ];
-                triangles.push([t[0], nv[0], nv[1]]);
-                triangles.push([t[1], nv[0], nv[2]]);
-                triangles.push([t[2], nv[1], nv[2]]);
-                triangles.push([nv[0], nv[1], nv[2]]);
-            }
-        }
-        Self { triangles }
-    }
-}
-
-static ICOSPHERE: Lazy<IcoSphere> = Lazy::new(|| IcoSphere::new(2));
