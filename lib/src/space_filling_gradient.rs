@@ -1,11 +1,14 @@
 use crate::{
     blur, designer,
     lab_ui::LabUi,
+    rotator::Rotator,
     utils::{
-        oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider, vec3_to_oklab,
+        oklab_to_srgb, oklab_to_srgb_clipped, oklab_to_vec3, render_par_usize, resettable_slider,
+        vec3_to_oklab,
     },
 };
-use glam::vec3;
+use eframe::egui;
+use glam::{vec3, Quat, Vec3};
 use num_bigint::BigUint;
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
@@ -17,8 +20,10 @@ pub struct Gradient {
     offset: Oklab,
     scale: Oklab,
     // TODO add rotation
+    rotation: Quat,
     levels: u32,
     smooth: f32,
+    extend: bool,
 }
 
 impl Gradient {
@@ -34,24 +39,30 @@ impl Gradient {
     };
     const SMOOTH_DEFAULT: f32 = 0.;
     const LEVELS_DEFAULT: u32 = 3;
+    const ROTATION_DEFAULT: Quat = Quat::IDENTITY;
     pub fn new() -> Self {
         Self {
             offset: Self::OFFSET_DEFAULT,
             scale: Self::SCALE_DEFAULT,
+            rotation: Self::ROTATION_DEFAULT,
             levels: Self::LEVELS_DEFAULT,
             smooth: Self::SMOOTH_DEFAULT,
+            extend: true,
         }
     }
 }
 
 impl designer::Designer for Gradient {
     fn show_ui(&mut self, ui: &mut eframe::egui::Ui) -> bool {
+        const SPACE: f32 = 10.;
         let mut c = self.clone();
         let Gradient {
             offset,
             scale,
+            rotation,
             smooth,
             levels,
+            extend,
         } = &mut c;
         ui.vertical(|ui| {
             ui.add(
@@ -67,8 +78,23 @@ impl designer::Designer for Gradient {
                     .a_range(scale_range.clone())
                     .b_range(scale_range),
             );
+            ui.add_space(SPACE);
+            ui.label("rotation");
+            ui.horizontal(|ui| {
+                ui.add(Rotator::new(rotation));
+                if ui
+                    .add_enabled(*rotation != Self::ROTATION_DEFAULT, egui::Button::new("⟲"))
+                    .clicked()
+                {
+                    *rotation = Self::ROTATION_DEFAULT;
+                }
+            });
+            // TODO rotation
             resettable_slider(ui, levels, "levels", 1..=9, Self::LEVELS_DEFAULT);
-            resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
+            ui.checkbox(extend, "extend");
+            ui.add_enabled_ui(*extend, |ui| {
+                resettable_slider(ui, smooth, "smooth", 0. ..=100., Self::SMOOTH_DEFAULT);
+            });
         });
         if c != *self {
             *self = c;
@@ -124,18 +150,22 @@ impl designer::Designer for Gradient {
                     .as_ref(),
             );
             let mut v3 = v3_lower.lerp(v3_upper, f as f32);
-            // TODO change order of these
+            v3 -= Vec3::splat(0.5);
+            v3 = self.rotation * v3;
             v3 *= vec3(1., 2., 2.);
-            v3 += vec3(-0.5, -1., -1.);
+            //v3 += vec3(-0.5, -1., -1.);
             v3 *= oklab_to_vec3(self.scale);
             v3.x += 0.5;
             v3 += oklab_to_vec3(self.offset);
 
             let lab = vec3_to_oklab(v3);
-            // TODO do we need clipped? in case the curve goes outside gamut?
-            oklab_to_srgb_clipped(lab)
+            if self.extend {
+                oklab_to_srgb_clipped(lab)
+            } else {
+                oklab_to_srgb(&lab)
+            }
         });
-        if self.smooth > 0. {
+        if self.smooth > 0. && self.extend {
             // TODO have rayon split the work into bigger chunks to reduce sync?
             let mut labbuf: Vec<_> = buf
                 .par_iter()

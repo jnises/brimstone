@@ -5,9 +5,10 @@ mod gamut_mapping;
 mod hue_gradient;
 mod lab_ui;
 mod linear_gradient;
-mod utils;
 mod space_filling_gradient;
 mod space_filling_gradient_2;
+mod utils;
+mod rotator;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -22,8 +23,8 @@ enum DesignerType {
     Linear,
     Hue,
     Bent,
-    SpaceFilling,
     #[default]
+    SpaceFilling,
     SpaceFilling2,
 }
 
@@ -105,46 +106,44 @@ impl Default for Gui {
 
 impl App for Gui {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    egui::ComboBox::from_id_source("designer")
-                        .selected_text(format!("{:?}", self.current_designer.0))
-                        .show_ui(ui, |ui| {
-                            let mut selected_designer = self.current_designer.0;
-                            for i in DesignerType::iter() {
-                                ui.selectable_value(&mut selected_designer, i, format!("{:?}", i));
-                            }
-                            if selected_designer != self.current_designer.0 {
-                                let new_designer = selected_designer.make();
-                                self.current_designer = (selected_designer, new_designer);
-                                self.texture = None;
-                            }
-                        });
-                    ui.separator();
-                    if ui.add(egui::Button::new("💾")).clicked() {
-                        if let Ok(Some(path)) = FileDialog::new()
-                            .add_filter("PNG Image", &["png"])
-                            .show_save_single_file()
-                        {
-                            save_image_from_params(self.current_designer.1.as_ref(), path);
+        egui::TopBottomPanel::top("top panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_source("designer")
+                    .selected_text(format!("{:?}", self.current_designer.0))
+                    .show_ui(ui, |ui| {
+                        let mut selected_designer = self.current_designer.0;
+                        for i in DesignerType::iter() {
+                            ui.selectable_value(&mut selected_designer, i, format!("{:?}", i));
                         }
-                    }
-                });
-                ui.separator();
-                ui.horizontal_top(|ui| {
-                    ui.set_min_width(250.);
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        if self.current_designer.1.show_ui(ui) || self.texture.is_none() {
-                            let tex =
-                                make_texture_from_params(ctx, self.current_designer.1.as_ref());
-                            self.texture = Some(tex);
+                        if selected_designer != self.current_designer.0 {
+                            let new_designer = selected_designer.make();
+                            self.current_designer = (selected_designer, new_designer);
+                            self.texture = None;
                         }
                     });
-                    let texture = self.texture.as_ref().unwrap();
-                    ui.image(texture, texture.size_vec2());
-                });
+                ui.separator();
+                if ui.add(egui::Button::new("💾")).clicked() {
+                    if let Ok(Some(path)) = FileDialog::new()
+                        .add_filter("PNG Image", &["png"])
+                        .show_save_single_file()
+                    {
+                        save_image_from_params(self.current_designer.1.as_ref(), path);
+                    }
+                }
             });
+        });
+        egui::SidePanel::left("left panel").show(ctx, |ui| {
+            ui.set_min_width(250.);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                if self.current_designer.1.show_ui(ui) || self.texture.is_none() {
+                    let tex = make_texture_from_params(ctx, self.current_designer.1.as_ref());
+                    self.texture = Some(tex);
+                }
+            });
+        });
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let texture = self.texture.as_ref().unwrap();
+            ui.image(texture, texture.size_vec2());
         });
     }
 }
