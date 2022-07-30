@@ -103,6 +103,7 @@ impl designer::Designer for Gradient {
         let h_bits = self.levels + 1;
         let h_size = 2_u32.pow(h_bits);
         let maxhid = h_size.pow(2) - 1;
+        let level_size = 0.5 * (2. - 2_f32.powi(-(self.levels as i32)));
         render_par(size, buf, |x, y| {
             let hid_f = maxhid as f32 * x;
             let hid_lower = hid_f as u64;
@@ -118,7 +119,7 @@ impl designer::Designer for Gradient {
                 p2_lower
                     .get_coordinates()
                     .iter()
-                    .map(|&a| (a as f32 / h_size as f32 - 0.5) * 2.0)
+                    .map(|&a| (a as f32 / h_size as f32 - 0.5) * 2.0 * level_size)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
@@ -132,7 +133,7 @@ impl designer::Designer for Gradient {
                 p2_upper
                     .get_coordinates()
                     .iter()
-                    .map(|&a| (a as f32 / h_size as f32 - 0.5) * 2.0)
+                    .map(|&a| (a as f32 / h_size as f32 - 0.5) * 2.0 * level_size)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
