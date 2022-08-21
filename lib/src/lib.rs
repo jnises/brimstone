@@ -5,10 +5,10 @@ mod gamut_mapping;
 mod hue_gradient;
 mod lab_ui;
 mod linear_gradient;
+mod rotator;
 mod space_filling_gradient;
 mod space_filling_gradient_2;
 mod utils;
-mod rotator;
 use crate::designer::Designer;
 use eframe::{egui, App};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -57,6 +57,7 @@ fn make_texture_from_params(
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], u8buf.as_ref()),
+        egui::TextureFilter::Linear,
     )
 }
 
