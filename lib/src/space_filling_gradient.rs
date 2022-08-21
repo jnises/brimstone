@@ -112,6 +112,7 @@ impl designer::Designer for Gradient {
         let bits_3d = self.levels + 1;
         let size_3d = 2_u32.pow(bits_3d);
         let maxid_3d = size_3d.pow(3) - 1;
+        let level_size = 0.5 * (2. - 2_f32.powi(-(self.levels as i32)));
         render_par_usize(size, buf, |x, y| {
             let hid_2d =
                 hilbert::Point::new(0, &[x as u32, y as u32]).hilbert_transform(bits_2d as usize);
@@ -131,7 +132,7 @@ impl designer::Designer for Gradient {
                 p3_lower
                     .get_coordinates()
                     .iter()
-                    .map(|&a| a as f32 / size_3d as f32)
+                    .map(|&a| (a as f32 / size_3d as f32 - 0.5) * level_size)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
@@ -145,12 +146,11 @@ impl designer::Designer for Gradient {
                 p3_upper
                     .get_coordinates()
                     .iter()
-                    .map(|&a| a as f32 / size_3d as f32)
+                    .map(|&a| (a as f32 / size_3d as f32 - 0.5) * level_size)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
             let mut v3 = v3_lower.lerp(v3_upper, f as f32);
-            v3 -= Vec3::splat(0.5);
             v3 = self.rotation * v3;
             v3 *= vec3(1., 2., 2.);
             //v3 += vec3(-0.5, -1., -1.);
