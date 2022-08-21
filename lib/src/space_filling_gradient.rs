@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use eframe::egui;
-use glam::{vec3, Quat, Vec3};
+use glam::Quat;
 use num_bigint::BigUint;
 use palette::{convert::FromColorUnclamped, Oklab, Srgb};
 use rayon::iter::{
@@ -33,7 +33,7 @@ impl Gradient {
         b: 0.,
     };
     const SCALE_DEFAULT: Oklab = Oklab {
-        l: 1.,
+        l: 0.5,
         a: 1.,
         b: 1.,
     };
@@ -132,7 +132,7 @@ impl designer::Designer for Gradient {
                 p3_lower
                     .get_coordinates()
                     .iter()
-                    .map(|&a| (a as f32 / size_3d as f32 - 0.5) * level_size)
+                    .map(|&a| (a as f32 / size_3d as f32 - 0.5) * 2.0 * level_size)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
@@ -146,13 +146,13 @@ impl designer::Designer for Gradient {
                 p3_upper
                     .get_coordinates()
                     .iter()
-                    .map(|&a| (a as f32 / size_3d as f32 - 0.5) * level_size)
+                    .map(|&a| (a as f32 / size_3d as f32 - 0.5) * 2.0 * level_size)
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
             let mut v3 = v3_lower.lerp(v3_upper, f as f32);
             v3 = self.rotation * v3;
-            v3 *= vec3(1., 2., 2.);
+            //v3 *= vec3(1., 2., 2.);
             //v3 += vec3(-0.5, -1., -1.);
             v3 *= oklab_to_vec3(self.scale);
             v3.x += 0.5;
