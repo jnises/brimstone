@@ -107,14 +107,14 @@ impl designer::Designer for Gradient {
                     .default_value(Self::Y2_SLOPE_DEFAULT)
                     .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l())
                     .a_range(slope2_range.clone())
-                    .b_range(slope2_range.clone()),
+                    .b_range(slope2_range),
             );
             ui.add(
                 LabUi::new(y3_slope, "y3")
                     .default_value(Self::Y3_SLOPE_DEFAULT)
                     .l_range(-Oklab::<f32>::max_l()..=Oklab::max_l())
                     .a_range(slope3_range.clone())
-                    .b_range(slope3_range.clone()),
+                    .b_range(slope3_range),
             );
             ui.checkbox(extend, "extend");
             ui.add_enabled_ui(*extend, |ui| {

@@ -91,8 +91,8 @@ where
             for _ in 0..rd {
                 acc += inp[0];
             }
-            for i in 0..=rd {
-                acc += inp[i];
+            for i in &inp[0..=rd] {
+                acc += *i;
             }
             for x in 0..w {
                 out[x] = acc / filter_width as f32;
