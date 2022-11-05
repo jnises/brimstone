@@ -1,4 +1,4 @@
-use eframe::{egui::Vec2};
+use eframe::egui::Vec2;
 use lib::Gui;
 
 fn main() {
@@ -12,6 +12,6 @@ fn main() {
             }),
             ..Default::default()
         },
-        Box::new(|_ctx| Box::new(Gui::default()))
+        Box::new(|_ctx| Box::new(Gui::default())),
     );
 }
