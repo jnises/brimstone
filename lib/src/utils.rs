@@ -1,6 +1,9 @@
 use std::ops::RangeInclusive;
 
-use eframe::{egui::{self, Ui}, emath};
+use eframe::{
+    egui::{self, Ui},
+    emath,
+};
 use glam::{vec3, Vec3};
 use palette::{convert::FromColorUnclamped, Clamp, Component, FromComponent, Oklab, Srgb};
 use rayon::{
@@ -15,7 +18,9 @@ where
     F: Fn(f32, f32) -> Srgb + Sync,
     T: Default + Copy + Send + FromComponent<f32> + Component,
 {
-    render_par_usize(size, buf, |x, y| func(x as f32 / size.0 as f32, y as f32 / size.1 as f32));
+    render_par_usize(size, buf, |x, y| {
+        func(x as f32 / size.0 as f32, y as f32 / size.1 as f32)
+    });
 }
 
 pub fn render_par_usize<F, T>(size: (usize, usize), buf: &mut [Srgb<T>], func: F)
