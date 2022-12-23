@@ -15,5 +15,6 @@ native-dialog = { version="0.6.3", features = ["windows_dpi_awareness", "windows
 glam = "0.22"
 strum = "0.24.1"
 strum_macros = "0.24.2"
-hilbert = "0.1.2"
+# forked to avoid old dependencies that makes dependabot sad
+hilbert = { git = "https://github.com/jnises/hilbert", branch = "remove-spectral" }
 num-bigint = "0.4.3"
