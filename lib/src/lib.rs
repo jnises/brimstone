@@ -57,7 +57,7 @@ fn make_texture_from_params(
     ctx.load_texture(
         "gradient",
         egui::ColorImage::from_rgba_unmultiplied([IMG_SIZE, IMG_SIZE], u8buf.as_ref()),
-        egui::TextureFilter::Linear,
+        egui::TextureOptions::default(),
     )
 }
 
