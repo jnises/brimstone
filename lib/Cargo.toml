@@ -12,7 +12,7 @@ palette = "0.6.0"
 rayon = "1.5.2"
 image = { version="0.24.1", default-features = false, features = ["png"] }
 native-dialog = { version="0.6.3", features = ["windows_dpi_awareness", "windows_visual_styles"] }
-glam = "0.22"
+glam = "0.24"
 strum = "0.24.1"
 strum_macros = "0.24.2"
 # forked to avoid old dependencies that makes dependabot sad
