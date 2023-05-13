@@ -53,7 +53,7 @@ fn box_widths_for_gauss_3(sigma: f32) -> [u32; 3] {
         }
     };
     let wu = wl + 2;
-    let m = ((12. * sigma.powi(2) - (N * wl.pow(2) as f32 - 4. * N * wl as f32 - 3. * N) as f32)
+    let m = ((12. * sigma.powi(2) - (N * wl.pow(2) as f32 - 4. * N * wl as f32 - 3. * N))
         / (-4. * wl as f32 - 4.))
         .round() as u32;
     [

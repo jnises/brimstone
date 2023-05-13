@@ -137,7 +137,7 @@ impl designer::Designer for Gradient {
                     .collect::<Vec<_>>()
                     .as_ref(),
             );
-            let mut v2 = v2_lower.lerp(v2_upper, f as f32);
+            let mut v2 = v2_lower.lerp(v2_upper, f);
             v2 = Mat2::from_angle(self.rotation) * v2;
             let mut v3 = vec3(1. - y, v2.x, v2.y);
             v3 *= oklab_to_vec3(self.scale);

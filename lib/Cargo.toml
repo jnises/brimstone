@@ -5,14 +5,14 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-eframe = "0.20"
+eframe = { workspace = true }
 env_logger = "0.10"
 anyhow = "1.0"
 palette = "0.6.0"
 rayon = "1.5.2"
 image = { version="0.24.1", default-features = false, features = ["png"] }
 native-dialog = { version="0.6.3", features = ["windows_dpi_awareness", "windows_visual_styles"] }
-glam = "0.22"
+glam = "0.24"
 strum = "0.24.1"
 strum_macros = "0.24.2"
 # forked to avoid old dependencies that makes dependabot sad
