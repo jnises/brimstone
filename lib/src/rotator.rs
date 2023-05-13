@@ -28,10 +28,12 @@ impl<'a> Widget for Rotator<'a> {
         let id = response.id;
         // TODO is this correct?
         let on = if let Some(pos) = response.interact_pointer_pos() {
-            let data = ui.data_mut(|d| *d.get_temp_mut_or_insert_with(id, || State {
-                start_rot: *self.quat,
-                start_pos: pos,
-            }));
+            let data = ui.data_mut(|d| {
+                *d.get_temp_mut_or_insert_with(id, || State {
+                    start_rot: *self.quat,
+                    start_pos: pos,
+                })
+            });
             let d = pos - data.start_pos;
             // 2d cross product, with flipped y
             *self.quat = Quat::from_scaled_axis(glam::vec3(d.y, d.x, 0.) * 0.01) * data.start_rot;
