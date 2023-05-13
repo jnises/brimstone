@@ -72,7 +72,7 @@ impl designer::Designer for Gradient {
                 ui,
                 &mut center.a,
                 "a center",
-                Oklab::<f32>::min_a() * 2.0..=Oklab::<f32>::max_b() * 2.,
+                Oklab::<f32>::min_a() * 2.0..=Oklab::<f32>::max_a() * 2.,
                 Self::CENTER_DEFAULT.a,
             );
             resettable_slider(
