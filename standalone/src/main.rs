@@ -12,6 +12,6 @@ fn main() -> eframe::Result<()> {
             }),
             ..Default::default()
         },
-        Box::new(|_ctx| Box::new(Gui::default())),
+        Box::new(|_ctx| Box::<Gui>::default()),
     )
 }
