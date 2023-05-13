@@ -1,7 +1,7 @@
 use eframe::egui::Vec2;
 use lib::Gui;
 
-fn main() {
+fn main() -> eframe::Result<()> {
     env_logger::init();
     eframe::run_native(
         "Brimstone",
@@ -13,5 +13,5 @@ fn main() {
             ..Default::default()
         },
         Box::new(|_ctx| Box::new(Gui::default())),
-    );
+    )
 }

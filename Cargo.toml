@@ -8,7 +8,7 @@ members = [
 default-members = ["standalone"]
 
 [workspace.dependencies]
-eframe = { version = "0.20", features = ["dark-light", "wgpu"] }
+eframe = { version = "0.21", features = ["dark-light", "wgpu"] }
 
 [profile.release]
 lto = "thin"
