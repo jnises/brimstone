@@ -144,7 +144,7 @@ impl App for Gui {
         });
         egui::CentralPanel::default().show(ctx, |ui| {
             let texture = self.texture.as_ref().unwrap();
-            ui.image(texture, texture.size_vec2());
+            ui.image(texture);
         });
     }
 }
